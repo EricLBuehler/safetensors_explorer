@@ -7,3 +7,4 @@ edition = "2024"
 safetensors = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
+crossterm = "0.28"
