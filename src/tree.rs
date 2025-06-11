@@ -35,7 +35,7 @@ pub fn natural_sort_key(name: &str) -> Vec<NaturalSortItem> {
     let mut result = Vec::new();
     let mut current_number = String::new();
     let mut current_text = String::new();
-    
+
     for ch in name.chars() {
         if ch.is_ascii_digit() {
             if !current_text.is_empty() {
@@ -55,7 +55,7 @@ pub fn natural_sort_key(name: &str) -> Vec<NaturalSortItem> {
             current_text.push(ch);
         }
     }
-    
+
     if !current_number.is_empty() {
         if let Ok(num) = current_number.parse::<u32>() {
             result.push(NaturalSortItem::Number(num));
@@ -66,7 +66,7 @@ pub fn natural_sort_key(name: &str) -> Vec<NaturalSortItem> {
     if !current_text.is_empty() {
         result.push(NaturalSortItem::Text(current_text));
     }
-    
+
     result
 }
 

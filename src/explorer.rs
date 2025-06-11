@@ -66,7 +66,8 @@ impl Explorer {
             }
         }
 
-        self.tensors.sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
+        self.tensors
+            .sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
         self.build_tree();
         Ok(())
     }

@@ -15,6 +15,11 @@ An interactive terminal-based explorer for SafeTensors files, designed to help y
 
 ## Installation
 
+### From crates.io
+```bash
+cargo install safetensors_explorer
+```
+
 ### Prerequisites
 - Rust (1.70 or later)
 
@@ -30,34 +35,34 @@ cargo build --release
 ### Basic usage
 ```bash
 # Explore a single SafeTensors file
-cargo run -- model.safetensors
+safetensors_explorer model.safetensors
 
-# Or use the compiled binary
-./target/release/safetensors_explorer model.safetensors
+# Or if building from source
+cargo run -- model.safetensors
 ```
 
 ### Directory exploration
 ```bash
 # Explore all SafeTensors files in a directory
-cargo run -- /path/to/model/directory
+safetensors_explorer /path/to/model/directory
 
 # Recursively search subdirectories
-cargo run -- -r /path/to/models
+safetensors_explorer -r /path/to/models
 
 # The tool automatically detects and uses model.safetensors.index.json if present
-cargo run -- /path/to/huggingface/model
+safetensors_explorer /path/to/huggingface/model
 ```
 
 ### Multi-file exploration
 ```bash
 # Explore multiple files as a unified model
-cargo run -- model-00001-of-00003.safetensors model-00002-of-00003.safetensors model-00003-of-00003.safetensors
+safetensors_explorer model-00001-of-00003.safetensors model-00002-of-00003.safetensors model-00003-of-00003.safetensors
 
 # Mix files and directories
-cargo run -- model.safetensors /path/to/additional/models
+safetensors_explorer model.safetensors /path/to/additional/models
 
 # Using wildcards
-cargo run -- *.safetensors
+safetensors_explorer *.safetensors
 ```
 
 ### Keyboard Controls

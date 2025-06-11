@@ -5,8 +5,8 @@ mod utils;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 use crate::explorer::Explorer;
 
@@ -16,8 +16,12 @@ use crate::explorer::Explorer;
 struct Args {
     #[arg(help = "SafeTensors files or directories to explore")]
     paths: Vec<PathBuf>,
-    
-    #[arg(short, long, help = "Recursively search directories for SafeTensors files")]
+
+    #[arg(
+        short,
+        long,
+        help = "Recursively search directories for SafeTensors files"
+    )]
     recursive: bool,
 }
 
@@ -31,7 +35,7 @@ fn main() -> Result<()> {
     }
 
     let files = collect_safetensors_files(&args.paths, args.recursive)?;
-    
+
     if files.is_empty() {
         eprintln!("Error: No SafeTensors files found in the specified paths.");
         std::process::exit(1);
@@ -43,13 +47,13 @@ fn main() -> Result<()> {
 
 fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    
+
     for path in paths {
         if !path.exists() {
             eprintln!("Warning: Path does not exist: {}", path.display());
             continue;
         }
-        
+
         if path.is_file() {
             if path.extension().and_then(|s| s.to_str()) == Some("safetensors") {
                 files.push(path.clone());
@@ -74,7 +78,7 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
                 } else {
                     format!("{}/*.safetensors", path.display())
                 };
-                
+
                 for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
                     match entry {
                         Ok(file_path) => files.push(file_path),
@@ -84,7 +88,7 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
             }
         }
     }
-    
+
     // Sort files for consistent ordering
     files.sort();
     Ok(files)
@@ -93,12 +97,12 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
 fn parse_safetensors_index(index_path: &PathBuf) -> Result<Vec<String>> {
     let content = fs::read_to_string(index_path)
         .with_context(|| format!("Failed to read index file: {}", index_path.display()))?;
-    
+
     let index: serde_json::Value = serde_json::from_str(&content)
         .with_context(|| format!("Failed to parse index file: {}", index_path.display()))?;
-    
+
     let mut files = Vec::new();
-    
+
     if let Some(weight_map) = index.get("weight_map").and_then(|v| v.as_object()) {
         for file_name in weight_map.values() {
             if let Some(file_str) = file_name.as_str() {
@@ -108,7 +112,7 @@ fn parse_safetensors_index(index_path: &PathBuf) -> Result<Vec<String>> {
             }
         }
     }
-    
+
     files.sort();
     Ok(files)
 }
