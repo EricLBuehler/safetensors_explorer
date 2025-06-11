@@ -1,0 +1,43 @@
+name: Rust CI
+
+# Run on every push and pull request
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  build:
+    # Use the latest Ubuntu runner
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository code
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      # Install the Rust toolchain (stable) and common components
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # Cache compiled dependencies to speed-up subsequent runs
+      - name: Cache cargo build outputs
+        uses: Swatinem/rust-cache@v2
+
+      # Ensure the codebase is formatted according to rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      # Lint the code with Clippy and reject warnings
+      - name: Lint with clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # Build in release mode to catch any optimisation-only issues
+      - name: Build
+        run: cargo build --workspace --release --all-features --verbose
+
+      # Run tests (if any) to validate functionality
+      - name: Run tests
+        run: cargo test --workspace --all-features --verbose
