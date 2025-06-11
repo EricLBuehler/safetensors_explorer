@@ -52,33 +52,6 @@ impl TreeNode {
             TreeNode::Tensor { info } => &info.name,
         }
     }
-
-    fn is_expanded(&self) -> bool {
-        match self {
-            TreeNode::Group { expanded, .. } => *expanded,
-            TreeNode::Tensor { .. } => false,
-        }
-    }
-
-    fn toggle_expand(&mut self) {
-        if let TreeNode::Group { expanded, .. } = self {
-            *expanded = !*expanded;
-        }
-    }
-
-    fn tensor_count(&self) -> usize {
-        match self {
-            TreeNode::Group { tensor_count, .. } => *tensor_count,
-            TreeNode::Tensor { .. } => 1,
-        }
-    }
-
-    fn total_size(&self) -> usize {
-        match self {
-            TreeNode::Group { total_size, .. } => *total_size,
-            TreeNode::Tensor { info } => info.size_bytes,
-        }
-    }
 }
 
 struct Explorer {
@@ -112,8 +85,9 @@ impl Explorer {
         file.read_to_end(&mut buffer)
             .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
-        let tensors = SafeTensors::deserialize(&buffer)
-            .with_context(|| format!("Failed to parse SafeTensors file: {}", file_path.display()))?;
+        let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
+            format!("Failed to parse SafeTensors file: {}", file_path.display())
+        })?;
 
         self.tensors.clear();
         for name in tensors.names() {
@@ -137,14 +111,17 @@ impl Explorer {
 
     fn build_tree(&mut self) {
         let mut root_map: HashMap<String, Vec<TensorInfo>> = HashMap::new();
-        
+
         for tensor in &self.tensors {
             let parts: Vec<&str> = tensor.name.split('.').collect();
             if parts.len() > 1 {
                 let prefix = parts[0].to_string();
                 root_map.entry(prefix).or_default().push(tensor.clone());
             } else {
-                root_map.entry("_root".to_string()).or_default().push(tensor.clone());
+                root_map
+                    .entry("_root".to_string())
+                    .or_default()
+                    .push(tensor.clone());
             }
         }
 
@@ -158,9 +135,9 @@ impl Explorer {
                 tensors.sort_by(|a, b| a.name.cmp(&b.name));
                 let tensor_count = tensors.len();
                 let total_size = tensors.iter().map(|t| t.size_bytes).sum();
-                
-                let children = self.build_subtree(&tensors, &prefix);
-                
+
+                let children = Self::build_subtree(&tensors, &prefix);
+
                 self.tree.push(TreeNode::Group {
                     name: prefix,
                     children,
@@ -170,19 +147,22 @@ impl Explorer {
                 });
             }
         }
-        
+
         self.tree.sort_by(|a, b| a.name().cmp(b.name()));
         self.flatten_tree();
     }
 
-    fn build_subtree(&self, tensors: &[TensorInfo], prefix: &str) -> Vec<TreeNode> {
+    fn build_subtree(tensors: &[TensorInfo], prefix: &str) -> Vec<TreeNode> {
         let mut groups: HashMap<String, Vec<TensorInfo>> = HashMap::new();
         let mut direct_tensors = Vec::new();
 
         for tensor in tensors {
-            let remaining = tensor.name.strip_prefix(&format!("{}.", prefix)).unwrap_or(&tensor.name);
+            let remaining = tensor
+                .name
+                .strip_prefix(&format!("{}.", prefix))
+                .unwrap_or(&tensor.name);
             let parts: Vec<&str> = remaining.split('.').collect();
-            
+
             if parts.len() == 1 {
                 direct_tensors.push(tensor.clone());
             } else {
@@ -192,7 +172,7 @@ impl Explorer {
         }
 
         let mut result = Vec::new();
-        
+
         for tensor in direct_tensors {
             result.push(TreeNode::Tensor { info: tensor });
         }
@@ -201,8 +181,8 @@ impl Explorer {
             let tensor_count = group_tensors.len();
             let total_size = group_tensors.iter().map(|t| t.size_bytes).sum();
             let full_prefix = format!("{}.{}", prefix, group_name);
-            let children = self.build_subtree(&group_tensors, &full_prefix);
-            
+            let children = Self::build_subtree(&group_tensors, &full_prefix);
+
             result.push(TreeNode::Group {
                 name: group_name,
                 children,
@@ -216,47 +196,15 @@ impl Explorer {
         result
     }
 
-    fn print_tree(&self) {
-        println!("SafeTensors File Structure");
-        println!("=========================");
-        println!();
-        
-        for node in &self.tree {
-            self.print_node(node, 0);
-        }
-    }
-
-    fn print_node(&self, node: &TreeNode, depth: usize) {
-        let indent = "  ".repeat(depth);
-        
-        match node {
-            TreeNode::Group { name, children, tensor_count, total_size, .. } => {
-                println!("{}📁 {} ({} tensors, {})", 
-                    indent, 
-                    name, 
-                    tensor_count,
-                    Self::format_size(*total_size)
-                );
-                
-                for child in children {
-                    self.print_node(child, depth + 1);
-                }
-            }
-            TreeNode::Tensor { info } => {
-                let short_name = info.name.split('.').next_back().unwrap_or(&info.name);
-                println!("{}  {} [{}, {}, {}]", 
-                    indent,
-                    short_name,
-                    info.dtype,
-                    Self::format_shape(&info.shape),
-                    Self::format_size(info.size_bytes)
-                );
-            }
-        }
-    }
-
     fn format_shape(shape: &[usize]) -> String {
-        format!("({})", shape.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(", "))
+        format!(
+            "({})",
+            shape
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 
     fn format_size(bytes: usize) -> String {
@@ -286,8 +234,11 @@ impl Explorer {
 
     fn flatten_node(&mut self, node: &TreeNode, depth: usize) {
         self.flattened_tree.push((node.clone(), depth));
-        
-        if let TreeNode::Group { children, expanded, .. } = node {
+
+        if let TreeNode::Group {
+            children, expanded, ..
+        } = node
+        {
             if *expanded {
                 for child in children {
                     self.flatten_node(child, depth + 1);
@@ -304,102 +255,159 @@ impl Explorer {
         terminal::enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, terminal::Clear(ClearType::All), cursor::Hide)?;
-        
+
         let result = self.interactive_loop();
-        
+
         execute!(stdout, terminal::Clear(ClearType::All), cursor::Show)?;
         terminal::disable_raw_mode()?;
-        
+
         result
     }
 
     fn interactive_loop(&mut self) -> Result<()> {
         self.load_file(&self.files[self.current_file_idx].clone())?;
-        
+
         loop {
             self.draw_screen()?;
-            
+
             if let Event::Key(key_event) = event::read()? {
                 match key_event {
-                    KeyEvent { code: KeyCode::Char('q'), .. } => break,
-                    KeyEvent { code: KeyCode::Char('c'), modifiers: KeyModifiers::CONTROL, .. } => break,
-                    KeyEvent { code: KeyCode::Up, .. } => self.move_selection(-1),
-                    KeyEvent { code: KeyCode::Down, .. } => self.move_selection(1),
-                    KeyEvent { code: KeyCode::Enter, .. } | KeyEvent { code: KeyCode::Char(' '), .. } => {
+                    KeyEvent {
+                        code: KeyCode::Char('q'),
+                        ..
+                    } => break,
+                    KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                        ..
+                    } => break,
+                    KeyEvent {
+                        code: KeyCode::Up, ..
+                    } => self.move_selection(-1),
+                    KeyEvent {
+                        code: KeyCode::Down,
+                        ..
+                    } => self.move_selection(1),
+                    KeyEvent {
+                        code: KeyCode::Enter,
+                        ..
+                    }
+                    | KeyEvent {
+                        code: KeyCode::Char(' '),
+                        ..
+                    } => {
                         self.toggle_current_node();
-                    },
-                    KeyEvent { code: KeyCode::Left, .. } => self.previous_file(),
-                    KeyEvent { code: KeyCode::Right, .. } => self.next_file(),
-                    _ => {},
+                    }
+                    KeyEvent {
+                        code: KeyCode::Left,
+                        ..
+                    } => self.previous_file(),
+                    KeyEvent {
+                        code: KeyCode::Right,
+                        ..
+                    } => self.next_file(),
+                    _ => {}
                 }
             }
         }
-        
+
         Ok(())
     }
 
     fn draw_screen(&mut self) -> Result<()> {
         let mut stdout = io::stdout();
-        execute!(stdout, terminal::Clear(ClearType::All), cursor::MoveTo(0, 0))?;
-        
+        execute!(
+            stdout,
+            terminal::Clear(ClearType::All),
+            cursor::MoveTo(0, 0)
+        )?;
+
         let (_, terminal_height) = terminal::size()?;
         let header_height = 3;
         let footer_height = 2;
-        let available_height = (terminal_height as usize).saturating_sub(header_height + footer_height);
-        
-        writeln!(stdout, "SafeTensors Explorer - {} ({}/{})\r",
+        let available_height =
+            (terminal_height as usize).saturating_sub(header_height + footer_height);
+
+        writeln!(
+            stdout,
+            "SafeTensors Explorer - {} ({}/{})\r",
             self.files[self.current_file_idx].display(),
             self.current_file_idx + 1,
-            self.files.len())?;
-        writeln!(stdout, "Use ↑/↓ to navigate, Enter/Space to expand/collapse, ←/→ for files, q to quit\r")?;
+            self.files.len()
+        )?;
+        writeln!(
+            stdout,
+            "Use ↑/↓ to navigate, Enter/Space to expand/collapse, ←/→ for files, q to quit\r"
+        )?;
         writeln!(stdout, "{}\r", "=".repeat(80))?;
-        
+
         if self.selected_idx >= self.scroll_offset + available_height {
             self.scroll_offset = self.selected_idx.saturating_sub(available_height - 1);
         } else if self.selected_idx < self.scroll_offset {
             self.scroll_offset = self.selected_idx;
         }
-        
+
         let end_idx = (self.scroll_offset + available_height).min(self.flattened_tree.len());
-        
+
         for i in self.scroll_offset..end_idx {
             let (node, depth) = &self.flattened_tree[i];
             let is_selected = i == self.selected_idx;
-            
+
             if is_selected {
-                execute!(stdout, SetForegroundColor(Color::Black), 
-                        crossterm::style::SetBackgroundColor(Color::White))?;
+                execute!(
+                    stdout,
+                    SetForegroundColor(Color::Black),
+                    crossterm::style::SetBackgroundColor(Color::White)
+                )?;
             }
-            
+
             self.draw_node(node, *depth, &mut stdout)?;
-            
+
             if is_selected {
                 execute!(stdout, ResetColor)?;
             }
         }
-        
+
         execute!(stdout, cursor::MoveTo(0, terminal_height - 1))?;
-        writeln!(stdout, "Selected: {}/{} | Scroll: {}\r", 
-            self.selected_idx + 1, 
+        writeln!(
+            stdout,
+            "Selected: {}/{} | Scroll: {}\r",
+            self.selected_idx + 1,
             self.flattened_tree.len(),
-            self.scroll_offset)?;
-        
+            self.scroll_offset
+        )?;
+
         stdout.flush()?;
         Ok(())
     }
 
     fn draw_node(&self, node: &TreeNode, depth: usize, stdout: &mut io::Stdout) -> Result<()> {
         let indent = "  ".repeat(depth);
-        
+
         match node {
-            TreeNode::Group { name, expanded, tensor_count, total_size, .. } => {
+            TreeNode::Group {
+                name,
+                expanded,
+                tensor_count,
+                total_size,
+                ..
+            } => {
                 let icon = if *expanded { "▼" } else { "▶" };
-                writeln!(stdout, "{}{} 📁 {} ({} tensors, {})\r", 
-                    indent, icon, name, tensor_count, Self::format_size(*total_size))?;
+                writeln!(
+                    stdout,
+                    "{}{} 📁 {} ({} tensors, {})\r",
+                    indent,
+                    icon,
+                    name,
+                    tensor_count,
+                    Self::format_size(*total_size)
+                )?;
             }
             TreeNode::Tensor { info } => {
                 let short_name = info.name.split('.').next_back().unwrap_or(&info.name);
-                writeln!(stdout, "{}  📄 {} [{}, {}, {}]\r", 
+                writeln!(
+                    stdout,
+                    "{}  📄 {} [{}, {}, {}]\r",
                     indent,
                     short_name,
                     info.dtype,
@@ -415,39 +423,44 @@ impl Explorer {
         if self.flattened_tree.is_empty() {
             return;
         }
-        
+
         let new_idx = if delta < 0 {
             self.selected_idx.saturating_sub((-delta) as usize)
         } else {
             (self.selected_idx + delta as usize).min(self.flattened_tree.len() - 1)
         };
-        
+
         self.selected_idx = new_idx;
     }
 
     fn toggle_current_node(&mut self) {
         if self.selected_idx < self.flattened_tree.len() {
             let (selected_node, _) = &self.flattened_tree[self.selected_idx];
-            
+
             if let TreeNode::Group { name, .. } = selected_node {
                 let name = name.clone();
                 let mut tree_clone = self.tree.clone();
-                self.toggle_node_by_name(&name, &mut tree_clone);
+                Self::toggle_node_by_name(&name, &mut tree_clone);
                 self.tree = tree_clone;
                 self.flatten_tree();
             }
         }
     }
 
-    fn toggle_node_by_name(&self, target_name: &str, nodes: &mut [TreeNode]) {
+    fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) {
         for node in nodes {
             match node {
-                TreeNode::Group { name, expanded, children, .. } => {
+                TreeNode::Group {
+                    name,
+                    expanded,
+                    children,
+                    ..
+                } => {
                     if name == target_name {
                         *expanded = !*expanded;
                         return;
                     }
-                    self.toggle_node_by_name(target_name, children);
+                    Self::toggle_node_by_name(target_name, children);
                 }
                 TreeNode::Tensor { .. } => {}
             }
@@ -459,7 +472,10 @@ impl Explorer {
             self.current_file_idx = (self.current_file_idx + 1) % self.files.len();
             self.selected_idx = 0;
             self.scroll_offset = 0;
-            if let Err(_) = self.load_file(&self.files[self.current_file_idx].clone()) {
+            if self
+                .load_file(&self.files[self.current_file_idx].clone())
+                .is_err()
+            {
                 // Handle error silently for now
             }
         }
@@ -474,7 +490,10 @@ impl Explorer {
             };
             self.selected_idx = 0;
             self.scroll_offset = 0;
-            if let Err(_) = self.load_file(&self.files[self.current_file_idx].clone()) {
+            if self
+                .load_file(&self.files[self.current_file_idx].clone())
+                .is_err()
+            {
                 // Handle error silently for now
             }
         }
