@@ -57,11 +57,9 @@ impl UI {
             scroll_offset
         };
 
-        let end_idx = (new_scroll_offset + available_height).min(tree.len());
 
         // Draw tree
-        for (i, (node, depth)) in tree.iter().enumerate().take(end_idx).skip(new_scroll_offset) {
-            let actual_index = i + new_scroll_offset;
+        for (actual_index, (node, depth)) in tree.iter().enumerate().skip(new_scroll_offset).take(available_height) {
             let is_selected = actual_index == selected_idx;
 
             if is_selected {
