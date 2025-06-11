@@ -43,7 +43,7 @@ impl UI {
         )?;
         writeln!(
             stdout,
-            "Use ↑/↓ to navigate, Enter/Space to expand/collapse, ←/→ for files, q to quit\r"
+            "Use ↑/↓ to navigate, Enter/Space to expand/collapse, q to quit\r"
         )?;
         writeln!(stdout, "{}\r", "=".repeat(80))?;
 

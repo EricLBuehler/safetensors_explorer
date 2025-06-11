@@ -19,7 +19,6 @@ pub struct Explorer {
     files: Vec<PathBuf>,
     tensors: Vec<TensorInfo>,
     tree: Vec<TreeNode>,
-    current_file_idx: usize,
     selected_idx: usize,
     scroll_offset: usize,
     flattened_tree: Vec<(TreeNode, usize)>,
@@ -31,38 +30,40 @@ impl Explorer {
             files,
             tensors: Vec::new(),
             tree: Vec::new(),
-            current_file_idx: 0,
             selected_idx: 0,
             scroll_offset: 0,
             flattened_tree: Vec::new(),
         }
     }
 
-    fn load_file(&mut self, file_path: &PathBuf) -> Result<()> {
-        let mut file = File::open(file_path)
-            .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
-
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)
-            .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
-
-        let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
-            format!("Failed to parse SafeTensors file: {}", file_path.display())
-        })?;
-
+    fn load_all_files(&mut self) -> Result<()> {
         self.tensors.clear();
-        for name in tensors.names() {
-            let tensor = tensors.tensor(name)?;
-            let shape = tensor.shape().to_vec();
-            let dtype = format!("{:?}", tensor.dtype());
-            let size_bytes = tensor.data().len();
 
-            self.tensors.push(TensorInfo {
-                name: name.to_string(),
-                dtype,
-                shape,
-                size_bytes,
-            });
+        for file_path in &self.files {
+            let mut file = File::open(file_path)
+                .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
+
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)
+                .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
+
+            let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
+                format!("Failed to parse SafeTensors file: {}", file_path.display())
+            })?;
+
+            for name in tensors.names() {
+                let tensor = tensors.tensor(name)?;
+                let shape = tensor.shape().to_vec();
+                let dtype = format!("{:?}", tensor.dtype());
+                let size_bytes = tensor.data().len();
+
+                self.tensors.push(TensorInfo {
+                    name: name.to_string(),
+                    dtype,
+                    shape,
+                    size_bytes,
+                });
+            }
         }
 
         self.tensors.sort_by(|a, b| a.name.cmp(&b.name));
@@ -97,14 +98,20 @@ impl Explorer {
     }
 
     fn interactive_loop(&mut self) -> Result<()> {
-        self.load_file(&self.files[self.current_file_idx].clone())?;
+        self.load_all_files()?;
 
         loop {
+            let title = if self.files.len() == 1 {
+                self.files[0].to_string_lossy().to_string()
+            } else {
+                "SafeTensors Model".to_string()
+            };
+
             self.scroll_offset = UI::draw_screen(
                 &self.flattened_tree,
-                &self.files[self.current_file_idx].to_string_lossy(),
-                self.current_file_idx,
-                self.files.len(),
+                &title,
+                0,
+                1,
                 self.selected_idx,
                 self.scroll_offset,
             )?;
@@ -137,14 +144,7 @@ impl Explorer {
                     } => {
                         self.handle_selection();
                     }
-                    KeyEvent {
-                        code: KeyCode::Left,
-                        ..
-                    } => self.previous_file(),
-                    KeyEvent {
-                        code: KeyCode::Right,
-                        ..
-                    } => self.next_file(),
+                    // Remove left/right file navigation since we're showing all files merged
                     _ => {}
                 }
             }
@@ -190,38 +190,6 @@ impl Explorer {
         if UI::draw_tensor_detail(tensor).is_ok() {
             // Wait for any key press
             let _ = event::read();
-        }
-    }
-
-    fn next_file(&mut self) {
-        if self.files.len() > 1 {
-            self.current_file_idx = (self.current_file_idx + 1) % self.files.len();
-            self.selected_idx = 0;
-            self.scroll_offset = 0;
-            if self
-                .load_file(&self.files[self.current_file_idx].clone())
-                .is_err()
-            {
-                // Handle error silently for now
-            }
-        }
-    }
-
-    fn previous_file(&mut self) {
-        if self.files.len() > 1 {
-            self.current_file_idx = if self.current_file_idx > 0 {
-                self.current_file_idx - 1
-            } else {
-                self.files.len() - 1
-            };
-            self.selected_idx = 0;
-            self.scroll_offset = 0;
-            if self
-                .load_file(&self.files[self.current_file_idx].clone())
-                .is_err()
-            {
-                // Handle error silently for now
-            }
         }
     }
 }
