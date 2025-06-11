@@ -31,6 +31,51 @@ impl TreeNode {
     }
 }
 
+pub fn natural_sort_key(name: &str) -> Vec<NaturalSortItem> {
+    let mut result = Vec::new();
+    let mut current_number = String::new();
+    let mut current_text = String::new();
+    
+    for ch in name.chars() {
+        if ch.is_ascii_digit() {
+            if !current_text.is_empty() {
+                result.push(NaturalSortItem::Text(current_text.clone()));
+                current_text.clear();
+            }
+            current_number.push(ch);
+        } else {
+            if !current_number.is_empty() {
+                if let Ok(num) = current_number.parse::<u32>() {
+                    result.push(NaturalSortItem::Number(num));
+                } else {
+                    result.push(NaturalSortItem::Text(current_number.clone()));
+                }
+                current_number.clear();
+            }
+            current_text.push(ch);
+        }
+    }
+    
+    if !current_number.is_empty() {
+        if let Ok(num) = current_number.parse::<u32>() {
+            result.push(NaturalSortItem::Number(num));
+        } else {
+            result.push(NaturalSortItem::Text(current_number));
+        }
+    }
+    if !current_text.is_empty() {
+        result.push(NaturalSortItem::Text(current_text));
+    }
+    
+    result
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NaturalSortItem {
+    Text(String),
+    Number(u32),
+}
+
 pub struct TreeBuilder;
 
 impl TreeBuilder {
@@ -57,7 +102,7 @@ impl TreeBuilder {
                     tree.push(TreeNode::Tensor { info: tensor });
                 }
             } else {
-                tensors.sort_by(|a, b| a.name.cmp(&b.name));
+                tensors.sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
                 let tensor_count = tensors.len();
                 let total_size = tensors.iter().map(|t| t.size_bytes).sum();
 
@@ -73,7 +118,7 @@ impl TreeBuilder {
             }
         }
 
-        tree.sort_by(|a, b| a.name().cmp(b.name()));
+        tree.sort_by(|a, b| natural_sort_key(a.name()).cmp(&natural_sort_key(b.name())));
         tree
     }
 
@@ -117,7 +162,7 @@ impl TreeBuilder {
             });
         }
 
-        result.sort_by(|a, b| a.name().cmp(b.name()));
+        result.sort_by(|a, b| natural_sort_key(a.name()).cmp(&natural_sort_key(b.name())));
         result
     }
 

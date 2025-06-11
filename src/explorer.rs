@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::tree::{TensorInfo, TreeBuilder, TreeNode};
+use crate::tree::{TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
 use crate::ui::UI;
 
 pub struct Explorer {
@@ -66,7 +66,7 @@ impl Explorer {
             }
         }
 
-        self.tensors.sort_by(|a, b| a.name.cmp(&b.name));
+        self.tensors.sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
         self.build_tree();
         Ok(())
     }
