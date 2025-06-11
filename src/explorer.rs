@@ -1,0 +1,227 @@
+use anyhow::{Context, Result};
+use crossterm::{
+    cursor,
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    execute,
+    terminal::{self, ClearType},
+};
+use safetensors::SafeTensors;
+use std::{
+    fs::File,
+    io::{self, Read},
+    path::PathBuf,
+};
+
+use crate::tree::{TensorInfo, TreeBuilder, TreeNode};
+use crate::ui::UI;
+
+pub struct Explorer {
+    files: Vec<PathBuf>,
+    tensors: Vec<TensorInfo>,
+    tree: Vec<TreeNode>,
+    current_file_idx: usize,
+    selected_idx: usize,
+    scroll_offset: usize,
+    flattened_tree: Vec<(TreeNode, usize)>,
+}
+
+impl Explorer {
+    pub fn new(files: Vec<PathBuf>) -> Self {
+        Self {
+            files,
+            tensors: Vec::new(),
+            tree: Vec::new(),
+            current_file_idx: 0,
+            selected_idx: 0,
+            scroll_offset: 0,
+            flattened_tree: Vec::new(),
+        }
+    }
+
+    fn load_file(&mut self, file_path: &PathBuf) -> Result<()> {
+        let mut file = File::open(file_path)
+            .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
+
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
+
+        let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
+            format!("Failed to parse SafeTensors file: {}", file_path.display())
+        })?;
+
+        self.tensors.clear();
+        for name in tensors.names() {
+            let tensor = tensors.tensor(name)?;
+            let shape = tensor.shape().to_vec();
+            let dtype = format!("{:?}", tensor.dtype());
+            let size_bytes = tensor.data().len();
+
+            self.tensors.push(TensorInfo {
+                name: name.to_string(),
+                dtype,
+                shape,
+                size_bytes,
+            });
+        }
+
+        self.tensors.sort_by(|a, b| a.name.cmp(&b.name));
+        self.build_tree();
+        Ok(())
+    }
+
+    fn build_tree(&mut self) {
+        self.tree = TreeBuilder::build_tree(&self.tensors);
+        self.flatten_tree();
+    }
+
+    fn flatten_tree(&mut self) {
+        self.flattened_tree = TreeBuilder::flatten_tree(&self.tree);
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        if self.files.is_empty() {
+            return Ok(());
+        }
+
+        terminal::enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, terminal::Clear(ClearType::All), cursor::Hide)?;
+
+        let result = self.interactive_loop();
+
+        execute!(stdout, terminal::Clear(ClearType::All), cursor::Show)?;
+        terminal::disable_raw_mode()?;
+
+        result
+    }
+
+    fn interactive_loop(&mut self) -> Result<()> {
+        self.load_file(&self.files[self.current_file_idx].clone())?;
+
+        loop {
+            self.scroll_offset = UI::draw_screen(
+                &self.flattened_tree,
+                &self.files[self.current_file_idx].to_string_lossy(),
+                self.current_file_idx,
+                self.files.len(),
+                self.selected_idx,
+                self.scroll_offset,
+            )?;
+
+            if let Event::Key(key_event) = event::read()? {
+                match key_event {
+                    KeyEvent {
+                        code: KeyCode::Char('q'),
+                        ..
+                    } => break,
+                    KeyEvent {
+                        code: KeyCode::Char('c'),
+                        modifiers: KeyModifiers::CONTROL,
+                        ..
+                    } => break,
+                    KeyEvent {
+                        code: KeyCode::Up, ..
+                    } => self.move_selection(-1),
+                    KeyEvent {
+                        code: KeyCode::Down,
+                        ..
+                    } => self.move_selection(1),
+                    KeyEvent {
+                        code: KeyCode::Enter,
+                        ..
+                    }
+                    | KeyEvent {
+                        code: KeyCode::Char(' '),
+                        ..
+                    } => {
+                        self.handle_selection();
+                    }
+                    KeyEvent {
+                        code: KeyCode::Left,
+                        ..
+                    } => self.previous_file(),
+                    KeyEvent {
+                        code: KeyCode::Right,
+                        ..
+                    } => self.next_file(),
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn move_selection(&mut self, delta: i32) {
+        if self.flattened_tree.is_empty() {
+            return;
+        }
+
+        let new_idx = if delta < 0 {
+            self.selected_idx.saturating_sub((-delta) as usize)
+        } else {
+            (self.selected_idx + delta as usize).min(self.flattened_tree.len() - 1)
+        };
+
+        self.selected_idx = new_idx;
+    }
+
+    fn handle_selection(&mut self) {
+        if self.selected_idx < self.flattened_tree.len() {
+            let (selected_node, _) = &self.flattened_tree[self.selected_idx];
+
+            match selected_node {
+                TreeNode::Group { name, .. } => {
+                    let name = name.clone();
+                    let mut tree_clone = self.tree.clone();
+                    TreeBuilder::toggle_node_by_name(&name, &mut tree_clone);
+                    self.tree = tree_clone;
+                    self.flatten_tree();
+                }
+                TreeNode::Tensor { info } => {
+                    self.show_tensor_detail(info);
+                }
+            }
+        }
+    }
+
+    fn show_tensor_detail(&self, tensor: &TensorInfo) {
+        if UI::draw_tensor_detail(tensor).is_ok() {
+            // Wait for any key press
+            let _ = event::read();
+        }
+    }
+
+    fn next_file(&mut self) {
+        if self.files.len() > 1 {
+            self.current_file_idx = (self.current_file_idx + 1) % self.files.len();
+            self.selected_idx = 0;
+            self.scroll_offset = 0;
+            if self
+                .load_file(&self.files[self.current_file_idx].clone())
+                .is_err()
+            {
+                // Handle error silently for now
+            }
+        }
+    }
+
+    fn previous_file(&mut self) {
+        if self.files.len() > 1 {
+            self.current_file_idx = if self.current_file_idx > 0 {
+                self.current_file_idx - 1
+            } else {
+                self.files.len() - 1
+            };
+            self.selected_idx = 0;
+            self.scroll_offset = 0;
+            if self
+                .load_file(&self.files[self.current_file_idx].clone())
+                .is_err()
+            {
+                // Handle error silently for now
+            }
+        }
+    }
+}
