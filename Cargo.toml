@@ -8,3 +8,5 @@ safetensors = "0.4"
 clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
 crossterm = "0.28"
+serde_json = "1.0"
+glob = "0.3"

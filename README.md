@@ -6,8 +6,10 @@ An interactive terminal-based explorer for SafeTensors files, designed to help y
 
 - 🔍 **Interactive browsing** of SafeTensors file structure
 - 📁 **Hierarchical tree view** with expandable/collapsible groups
+- 🔢 **Smart numeric sorting** for layer numbers (e.g., layer.0, layer.1, layer.2, ..., layer.10)
 - 📊 **Tensor details** including shape, data type, and size
 - 🔗 **Multi-file support** - automatically merges multiple SafeTensors files into a unified view
+- 📂 **Directory support** - explore entire model directories with automatic SafeTensors index detection
 - 📏 **Human-readable sizes** (B, KB, MB, GB)
 - ⌨️ **Keyboard navigation** for smooth exploration
 
@@ -34,10 +36,25 @@ cargo run -- model.safetensors
 ./target/release/safetensors_explorer model.safetensors
 ```
 
+### Directory exploration
+```bash
+# Explore all SafeTensors files in a directory
+cargo run -- /path/to/model/directory
+
+# Recursively search subdirectories
+cargo run -- -r /path/to/models
+
+# The tool automatically detects and uses model.safetensors.index.json if present
+cargo run -- /path/to/huggingface/model
+```
+
 ### Multi-file exploration
 ```bash
 # Explore multiple files as a unified model
 cargo run -- model-00001-of-00003.safetensors model-00002-of-00003.safetensors model-00003-of-00003.safetensors
+
+# Mix files and directories
+cargo run -- model.safetensors /path/to/additional/models
 
 # Using wildcards
 cargo run -- *.safetensors
@@ -77,10 +94,21 @@ Use ↑/↓ to navigate, Enter/Space to expand/collapse, q to quit
 Selected: 1/342 | Scroll: 0
 ```
 
+## How It Works
+
+1. **Path Resolution**: Automatically discovers SafeTensors files from files, directories, or SafeTensors index files
+2. **File Loading**: Loads one or more SafeTensors files and extracts tensor metadata
+3. **Tree Building**: Organizes tensors into a hierarchical structure based on their names (split by '.')
+4. **Smart Sorting**: Uses natural sorting to handle numeric components correctly
+5. **Interactive Display**: Renders the tree with expansion/collapse functionality
+6. **Tensor Details**: Shows detailed information when selecting individual tensors
+
 ## Technical Details
 
 ### Supported Formats
 - SafeTensors files (`.safetensors`)
+- SafeTensors index files (`model.safetensors.index.json`)
+- Directory scanning with recursive search option
 - All tensor data types supported by the SafeTensors format
 
 ### Performance
@@ -94,6 +122,8 @@ Selected: 1/342 | Scroll: 0
 - `crossterm` - For terminal UI and keyboard input
 - `clap` - For command-line argument parsing
 - `anyhow` - For error handling
+- `serde_json` - For parsing SafeTensors index files
+- `glob` - For directory pattern matching
 
 ## Contributing
 
