@@ -118,7 +118,7 @@ impl TreeBuilder {
             }
         }
 
-        tree.sort_by(|a, b| natural_sort_key(a.name()).cmp(&natural_sort_key(b.name())));
+        tree.sort_by_key(|a| natural_sort_key(a.name()));
         tree
     }
 
@@ -162,7 +162,7 @@ impl TreeBuilder {
             });
         }
 
-        result.sort_by(|a, b| natural_sort_key(a.name()).cmp(&natural_sort_key(b.name())));
+        result.sort_by_key(|a| natural_sort_key(a.name()));
         result
     }
 
