@@ -2,6 +2,9 @@
 name = "safetensors_explorer"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/EricLBuehler/safetensors_explorer"
+license = "MIT"
+authors = ["Eric Buehler"]
 
 [dependencies]
 safetensors = "0.4"

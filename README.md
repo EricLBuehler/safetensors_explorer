@@ -20,7 +20,7 @@ An interactive terminal-based explorer for SafeTensors files, designed to help y
 
 ### Build from source
 ```bash
-git clone <repository-url>
+git clone https://github.com/EricLBuehler/safetensors_explorer
 cd safetensors_explorer
 cargo build --release
 ```
