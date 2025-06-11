@@ -36,14 +36,17 @@ pub struct TreeBuilder;
 impl TreeBuilder {
     pub fn build_tree(tensors: &[TensorInfo]) -> Vec<TreeNode> {
         let mut root_map: HashMap<String, Vec<TensorInfo>> = HashMap::new();
-        
+
         for tensor in tensors {
             let parts: Vec<&str> = tensor.name.split('.').collect();
             if parts.len() > 1 {
                 let prefix = parts[0].to_string();
                 root_map.entry(prefix).or_default().push(tensor.clone());
             } else {
-                root_map.entry("_root".to_string()).or_default().push(tensor.clone());
+                root_map
+                    .entry("_root".to_string())
+                    .or_default()
+                    .push(tensor.clone());
             }
         }
 
@@ -57,9 +60,9 @@ impl TreeBuilder {
                 tensors.sort_by(|a, b| a.name.cmp(&b.name));
                 let tensor_count = tensors.len();
                 let total_size = tensors.iter().map(|t| t.size_bytes).sum();
-                
+
                 let children = Self::build_subtree(&tensors, &prefix);
-                
+
                 tree.push(TreeNode::Group {
                     name: prefix,
                     children,
@@ -69,7 +72,7 @@ impl TreeBuilder {
                 });
             }
         }
-        
+
         tree.sort_by(|a, b| a.name().cmp(b.name()));
         tree
     }
@@ -79,9 +82,12 @@ impl TreeBuilder {
         let mut direct_tensors = Vec::new();
 
         for tensor in tensors {
-            let remaining = tensor.name.strip_prefix(&format!("{}.", prefix)).unwrap_or(&tensor.name);
+            let remaining = tensor
+                .name
+                .strip_prefix(&format!("{}.", prefix))
+                .unwrap_or(&tensor.name);
             let parts: Vec<&str> = remaining.split('.').collect();
-            
+
             if parts.len() == 1 {
                 direct_tensors.push(tensor.clone());
             } else {
@@ -91,7 +97,7 @@ impl TreeBuilder {
         }
 
         let mut result = Vec::new();
-        
+
         for tensor in direct_tensors {
             result.push(TreeNode::Tensor { info: tensor });
         }
@@ -101,7 +107,7 @@ impl TreeBuilder {
             let total_size = group_tensors.iter().map(|t| t.size_bytes).sum();
             let full_prefix = format!("{}.{}", prefix, group_name);
             let children = Self::build_subtree(&group_tensors, &full_prefix);
-            
+
             result.push(TreeNode::Group {
                 name: group_name,
                 children,
@@ -125,8 +131,11 @@ impl TreeBuilder {
 
     fn flatten_node(node: &TreeNode, depth: usize, flattened: &mut Vec<(TreeNode, usize)>) {
         flattened.push((node.clone(), depth));
-        
-        if let TreeNode::Group { children, expanded, .. } = node {
+
+        if let TreeNode::Group {
+            children, expanded, ..
+        } = node
+        {
             if *expanded {
                 for child in children {
                     Self::flatten_node(child, depth + 1, flattened);
@@ -138,7 +147,12 @@ impl TreeBuilder {
     pub fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) {
         for node in nodes {
             match node {
-                TreeNode::Group { name, expanded, children, .. } => {
+                TreeNode::Group {
+                    name,
+                    expanded,
+                    children,
+                    ..
+                } => {
                     if name == target_name {
                         *expanded = !*expanded;
                         return;

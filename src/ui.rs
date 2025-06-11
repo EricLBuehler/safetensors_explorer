@@ -1,7 +1,6 @@
 use anyhow::Result;
 use crossterm::{
-    cursor,
-    execute,
+    cursor, execute,
     style::{Color, ResetColor, SetForegroundColor},
     terminal::{self, ClearType},
 };
@@ -57,9 +56,13 @@ impl UI {
             scroll_offset
         };
 
-
         // Draw tree
-        for (actual_index, (node, depth)) in tree.iter().enumerate().skip(new_scroll_offset).take(available_height) {
+        for (actual_index, (node, depth)) in tree
+            .iter()
+            .enumerate()
+            .skip(new_scroll_offset)
+            .take(available_height)
+        {
             let is_selected = actual_index == selected_idx;
 
             if is_selected {
