@@ -5,6 +5,7 @@ edition = "2024"
 repository = "https://github.com/EricLBuehler/safetensors_explorer"
 license = "MIT"
 authors = ["Eric Buehler"]
+description = "CLI utility to inspect and explore .safetensors files"
 
 [dependencies]
 safetensors = "0.4"
