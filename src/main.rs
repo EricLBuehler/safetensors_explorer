@@ -1,4 +1,5 @@
 mod explorer;
+mod gguf;
 mod tree;
 mod ui;
 mod utils;

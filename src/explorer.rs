@@ -5,13 +5,14 @@ use crossterm::{
     execute,
     terminal::{self, ClearType},
 };
-use gguf::GGUFFile;
 use safetensors::SafeTensors;
 use std::{
     fs::File,
     io::{self, Read},
     path::PathBuf,
 };
+
+use crate::gguf::GGUFFile;
 
 use crate::tree::{TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
 use crate::ui::UI;
@@ -101,31 +102,20 @@ impl Explorer {
             .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
         let gguf = GGUFFile::read(&buffer)
-            .map_err(|e| anyhow::anyhow!("Failed to parse GGUF file: {}", e))?
-            .ok_or_else(|| anyhow::anyhow!("GGUF file is empty or invalid"))?;
+            .with_context(|| format!("Failed to parse GGUF file: {}", file_path.display()))?;
 
         for tensor in &gguf.tensors {
             let shape: Vec<usize> = tensor.dimensions.iter().map(|&d| d as usize).collect();
-            let dtype = format!("{:?}", tensor.tensor_type);
-            // For GGUF, we need to calculate size based on shape and data type
-            let element_size = match tensor.tensor_type {
-                gguf::GGMLType::F32 => 4,
-                gguf::GGMLType::F16 => 2,
-                gguf::GGMLType::Q4_0 => 1, // Approximate for quantized types
-                gguf::GGMLType::Q4_1 => 1,
-                gguf::GGMLType::Q5_0 => 1,
-                gguf::GGMLType::Q5_1 => 1,
-                gguf::GGMLType::Q8_0 => 1,
-                gguf::GGMLType::Q8_1 => 1,
-                gguf::GGMLType::Q2K => 1,
-                gguf::GGMLType::Q3K => 1,
-                gguf::GGMLType::Q4K => 1,
-                gguf::GGMLType::Q5K => 1,
-                gguf::GGMLType::Q6K => 1,
-                gguf::GGMLType::Q8K => 1,
-                _ => 1,
-            };
-            let size_bytes = shape.iter().product::<usize>() * element_size;
+            let dtype = format!(
+                "{} ({})",
+                tensor.tensor_type.description(),
+                format!("{:?}", tensor.tensor_type)
+            );
+
+            // Calculate size using the element size from our custom implementation
+            let total_elements = shape.iter().product::<usize>();
+            let size_bytes =
+                (total_elements as f32 * tensor.tensor_type.element_size_bytes()) as usize;
 
             self.tensors.push(TensorInfo {
                 name: tensor.name.clone(),
