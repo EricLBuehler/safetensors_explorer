@@ -1,4 +1,6 @@
-use anyhow::{Context, Result};
+#![allow(unused, non_camel_case_types)]
+
+use anyhow::Result;
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
@@ -119,74 +121,75 @@ impl GGMLType {
     /// For quantized types, this is an approximation
     pub fn element_size_bytes(&self) -> f32 {
         match self {
-            GGMLType::F32 => 4.0,
-            GGMLType::F16 => 2.0,
-            GGMLType::F64 => 8.0,
-            GGMLType::BF16 => 2.0,
+            GGMLType::F32 | GGMLType::I32 => 4.0,
+            GGMLType::F16 | GGMLType::BF16 | GGMLType::I16 => 2.0,
+            GGMLType::F64 | GGMLType::I64 => 8.0,
             GGMLType::I8 => 1.0,
-            GGMLType::I16 => 2.0,
-            GGMLType::I32 => 4.0,
-            GGMLType::I64 => 8.0,
-            // Quantized types - bits per weight
-            GGMLType::Q4_0 => 0.5 + 0.0625,   // 4 bits + scale
-            GGMLType::Q4_1 => 0.5 + 0.125,    // 4 bits + scale + min
-            GGMLType::Q5_0 => 0.625 + 0.0625, // 5 bits + scale
-            GGMLType::Q5_1 => 0.625 + 0.125,  // 5 bits + scale + min
-            GGMLType::Q8_0 => 1.0 + 0.0625,   // 8 bits + scale
-            GGMLType::Q8_1 => 1.0 + 0.125,    // 8 bits + scale + min
-            // K-quantization types (more complex)
-            GGMLType::Q2_K => 0.25 + 0.0625,  // ~2 bits + overhead
-            GGMLType::Q3_K => 0.375 + 0.0625, // ~3 bits + overhead
-            GGMLType::Q4_K => 0.5 + 0.0625,   // ~4 bits + overhead
-            GGMLType::Q5_K => 0.625 + 0.0625, // ~5 bits + overhead
-            GGMLType::Q6_K => 0.75 + 0.0625,  // ~6 bits + overhead
-            GGMLType::Q8_K => 1.0 + 0.0625,   // ~8 bits + overhead
-            // IQ (Importance Quantization) types
-            GGMLType::IQ1_S => 0.125 + 0.03125, // ~1 bit + overhead
-            GGMLType::IQ1_M => 0.125 + 0.03125, // ~1 bit + overhead
-            GGMLType::IQ2_XXS => 0.25 + 0.03125, // ~2 bits + overhead
-            GGMLType::IQ2_XS => 0.25 + 0.03125, // ~2 bits + overhead
-            GGMLType::IQ2_S => 0.25 + 0.03125,  // ~2 bits + overhead
-            GGMLType::IQ3_XXS => 0.375 + 0.03125, // ~3 bits + overhead
-            GGMLType::IQ3_S => 0.375 + 0.03125, // ~3 bits + overhead
-            GGMLType::IQ4_NL => 0.5 + 0.03125,  // ~4 bits + overhead
-            GGMLType::IQ4_XS => 0.5 + 0.03125,  // ~4 bits + overhead
+
+            // Legacy Q‑quants (block of 32 weights)
+            GGMLType::Q4_0 => 0.5625, // 18  / 32  bytes
+            GGMLType::Q4_1 => 0.625,  // 20  / 32
+            GGMLType::Q5_0 => 0.6875, // 22  / 32
+            GGMLType::Q5_1 => 0.75,   // 24  / 32
+            GGMLType::Q8_0 => 1.0625, // 34  / 32
+            GGMLType::Q8_1 => 1.125,  // 36  / 32
+
+            // K‑quants (super‑block of 256 weights)
+            GGMLType::Q2_K => 0.328_125,   // 2.625  bpw
+            GGMLType::Q3_K => 0.429_687_5, // 3.4375 bpw
+            GGMLType::Q4_K => 0.5625,      // 4.5    bpw
+            GGMLType::Q5_K => 0.6875,      // 5.5    bpw
+            GGMLType::Q6_K => 0.820_312_5, // 6.5625 bpw
+            GGMLType::Q8_K => 1.140_625,   // 9.125  bpw
+
+            // Importance‑quants (IQ‑family, super‑block 256)
+            GGMLType::IQ1_S => 0.195_312_5,   // 1.5625 bpw
+            GGMLType::IQ1_M => 0.218_75,      // 1.75   bpw
+            GGMLType::IQ2_XXS => 0.257_812_5, // 2.0625 bpw
+            GGMLType::IQ2_XS => 0.289_062_5,  // 2.3125 bpw
+            GGMLType::IQ2_S => 0.3125,        // 2.5    bpw
+            GGMLType::IQ3_XXS => 0.382_812_5, // 3.0625 bpw
+            GGMLType::IQ3_S => 0.429_687_5,   // 3.4375 bpw
+            GGMLType::IQ4_NL => 0.53125,      // 4.25   bpw
+            GGMLType::IQ4_XS => 0.53125,      // 4.25   bpw
         }
     }
+}
 
-    /// Get a human-readable description of the quantization type
-    pub fn description(&self) -> &'static str {
-        match self {
-            GGMLType::F32 => "32-bit float",
-            GGMLType::F16 => "16-bit float",
-            GGMLType::F64 => "64-bit float",
-            GGMLType::BF16 => "16-bit bfloat",
-            GGMLType::I8 => "8-bit integer",
-            GGMLType::I16 => "16-bit integer",
-            GGMLType::I32 => "32-bit integer",
-            GGMLType::I64 => "64-bit integer",
-            GGMLType::Q4_0 => "4-bit quantized (type 0)",
-            GGMLType::Q4_1 => "4-bit quantized (type 1)",
-            GGMLType::Q5_0 => "5-bit quantized (type 0)",
-            GGMLType::Q5_1 => "5-bit quantized (type 1)",
-            GGMLType::Q8_0 => "8-bit quantized (type 0)",
-            GGMLType::Q8_1 => "8-bit quantized (type 1)",
-            GGMLType::Q2_K => "2-bit K-quantized",
-            GGMLType::Q3_K => "3-bit K-quantized",
-            GGMLType::Q4_K => "4-bit K-quantized",
-            GGMLType::Q5_K => "5-bit K-quantized",
-            GGMLType::Q6_K => "6-bit K-quantized",
-            GGMLType::Q8_K => "8-bit K-quantized",
-            GGMLType::IQ1_S => "1-bit IQ (small)",
-            GGMLType::IQ1_M => "1-bit IQ (medium)",
-            GGMLType::IQ2_XXS => "2-bit IQ (xxs)",
-            GGMLType::IQ2_XS => "2-bit IQ (xs)",
-            GGMLType::IQ2_S => "2-bit IQ (small)",
-            GGMLType::IQ3_XXS => "3-bit IQ (xxs)",
-            GGMLType::IQ3_S => "3-bit IQ (small)",
-            GGMLType::IQ4_NL => "4-bit IQ (non-linear)",
-            GGMLType::IQ4_XS => "4-bit IQ (xs)",
-        }
+impl std::fmt::Display for GGMLType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            GGMLType::F32 => "F32",
+            GGMLType::F16 => "F16",
+            GGMLType::F64 => "F64",
+            GGMLType::BF16 => "BF16",
+            GGMLType::I8 => "I8",
+            GGMLType::I16 => "I16",
+            GGMLType::I32 => "I32",
+            GGMLType::I64 => "I64",
+            GGMLType::Q4_0 => "Q4_0",
+            GGMLType::Q4_1 => "Q4_1",
+            GGMLType::Q5_0 => "Q5_0",
+            GGMLType::Q5_1 => "Q5_1",
+            GGMLType::Q8_0 => "Q8_0",
+            GGMLType::Q8_1 => "Q8_1",
+            GGMLType::Q2_K => "Q2_K",
+            GGMLType::Q3_K => "Q3_K",
+            GGMLType::Q4_K => "Q4_K",
+            GGMLType::Q5_K => "Q5_K",
+            GGMLType::Q6_K => "Q6_K",
+            GGMLType::Q8_K => "Q8_K",
+            GGMLType::IQ2_XXS => "IQ2_XXS",
+            GGMLType::IQ2_XS => "IQ2_XS",
+            GGMLType::IQ3_XXS => "IQ3_XXS",
+            GGMLType::IQ1_S => "IQ1_S",
+            GGMLType::IQ4_NL => "IQ4_NL",
+            GGMLType::IQ3_S => "IQ3_S",
+            GGMLType::IQ2_S => "IQ2_S",
+            GGMLType::IQ4_XS => "IQ4_XS",
+            GGMLType::IQ1_M => "IQ1_M",
+        };
+        write!(f, "{s}")
     }
 }
 

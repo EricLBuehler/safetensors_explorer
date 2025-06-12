@@ -106,11 +106,7 @@ impl Explorer {
 
         for tensor in &gguf.tensors {
             let shape: Vec<usize> = tensor.dimensions.iter().map(|&d| d as usize).collect();
-            let dtype = format!(
-                "{} ({})",
-                tensor.tensor_type.description(),
-                format!("{:?}", tensor.tensor_type)
-            );
+            let dtype = tensor.tensor_type.to_string();
 
             // Calculate size using the element size from our custom implementation
             let total_elements = shape.iter().product::<usize>();
