@@ -6,7 +6,7 @@ use crossterm::{
 };
 use std::io::{self, Write};
 
-use crate::tree::{TensorInfo, TreeNode};
+use crate::tree::{MetadataInfo, TensorInfo, TreeNode};
 use crate::utils::{format_shape, format_size};
 
 pub struct UI;
@@ -128,6 +128,18 @@ impl UI {
                     format_size(info.size_bytes)
                 )?;
             }
+            TreeNode::Metadata { info } => {
+                let truncated_value = if info.value.len() > 50 {
+                    format!("{}...", &info.value[..47])
+                } else {
+                    info.value.clone()
+                };
+                writeln!(
+                    stdout,
+                    "{}  🏷️  {} [{}]: {}\r",
+                    indent, info.name, info.value_type, truncated_value
+                )?;
+            }
         }
         Ok(())
     }
@@ -146,6 +158,34 @@ impl UI {
         writeln!(stdout, "Data Type: {}\r", tensor.dtype)?;
         writeln!(stdout, "Shape: {}\r", format_shape(&tensor.shape))?;
         writeln!(stdout, "Size: {}\r", format_size(tensor.size_bytes))?;
+        writeln!(stdout, "\r")?;
+        writeln!(stdout, "Press any key to return...\r")?;
+
+        stdout.flush()?;
+        Ok(())
+    }
+
+    pub fn draw_metadata_detail(metadata: &MetadataInfo) -> Result<()> {
+        let mut stdout = io::stdout();
+        execute!(
+            stdout,
+            terminal::Clear(ClearType::All),
+            cursor::MoveTo(0, 0)
+        )?;
+
+        writeln!(stdout, "Metadata Details\r")?;
+        writeln!(stdout, "================\r")?;
+        writeln!(stdout, "Key: {}\r", metadata.name)?;
+        writeln!(stdout, "Type: {}\r", metadata.value_type)?;
+        writeln!(stdout, "Value:\r")?;
+
+        // Handle multi-line values or long values
+        let lines = metadata.value.lines();
+        for line in lines.take(20) {
+            // Limit to 20 lines
+            writeln!(stdout, "  {}\r", line)?;
+        }
+
         writeln!(stdout, "\r")?;
         writeln!(stdout, "Press any key to return...\r")?;
 

@@ -9,6 +9,13 @@ pub struct TensorInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct MetadataInfo {
+    pub name: String,
+    pub value: String,
+    pub value_type: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum TreeNode {
     Group {
         name: String,
@@ -20,6 +27,9 @@ pub enum TreeNode {
     Tensor {
         info: TensorInfo,
     },
+    Metadata {
+        info: MetadataInfo,
+    },
 }
 
 impl TreeNode {
@@ -27,6 +37,7 @@ impl TreeNode {
         match self {
             TreeNode::Group { name, .. } => name,
             TreeNode::Tensor { info } => &info.name,
+            TreeNode::Metadata { info } => &info.name,
         }
     }
 }
@@ -79,6 +90,33 @@ pub enum NaturalSortItem {
 pub struct TreeBuilder;
 
 impl TreeBuilder {
+    pub fn build_tree_mixed(tensors: &[TensorInfo], metadata: &[MetadataInfo]) -> Vec<TreeNode> {
+        let mut tree = Vec::new();
+
+        // Add metadata as a separate group
+        if !metadata.is_empty() {
+            let mut metadata_children = Vec::new();
+            for meta in metadata {
+                metadata_children.push(TreeNode::Metadata { info: meta.clone() });
+            }
+            metadata_children.sort_by_key(|a| natural_sort_key(a.name()));
+
+            tree.push(TreeNode::Group {
+                name: "🔧 Metadata".to_string(),
+                children: metadata_children,
+                expanded: false,
+                tensor_count: 0,
+                total_size: 0,
+            });
+        }
+
+        // Build tensor tree
+        let tensor_tree = Self::build_tree(tensors);
+        tree.extend(tensor_tree);
+
+        tree
+    }
+
     pub fn build_tree(tensors: &[TensorInfo]) -> Vec<TreeNode> {
         let mut root_map: HashMap<String, Vec<TensorInfo>> = HashMap::new();
 
@@ -205,6 +243,7 @@ impl TreeBuilder {
                     Self::toggle_node_by_name(target_name, children);
                 }
                 TreeNode::Tensor { .. } => {}
+                TreeNode::Metadata { .. } => {}
             }
         }
     }

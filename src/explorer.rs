@@ -14,12 +14,13 @@ use std::{
 
 use crate::gguf::GGUFFile;
 
-use crate::tree::{TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
+use crate::tree::{MetadataInfo, TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
 use crate::ui::UI;
 
 pub struct Explorer {
     files: Vec<PathBuf>,
     tensors: Vec<TensorInfo>,
+    metadata: Vec<MetadataInfo>,
     tree: Vec<TreeNode>,
     selected_idx: usize,
     scroll_offset: usize,
@@ -31,6 +32,7 @@ impl Explorer {
         Self {
             files,
             tensors: Vec::new(),
+            metadata: Vec::new(),
             tree: Vec::new(),
             selected_idx: 0,
             scroll_offset: 0,
@@ -40,6 +42,7 @@ impl Explorer {
 
     fn load_all_files(&mut self) -> Result<()> {
         self.tensors.clear();
+        self.metadata.clear();
 
         let files = self.files.clone();
         for file_path in &files {
@@ -104,6 +107,32 @@ impl Explorer {
         let gguf = GGUFFile::read(&buffer)
             .with_context(|| format!("Failed to parse GGUF file: {}", file_path.display()))?;
 
+        // Load metadata
+        for (key, value) in &gguf.metadata {
+            let value_type = match value {
+                crate::gguf::GGUFValue::U8(_) => "u8",
+                crate::gguf::GGUFValue::I8(_) => "i8",
+                crate::gguf::GGUFValue::U16(_) => "u16",
+                crate::gguf::GGUFValue::I16(_) => "i16",
+                crate::gguf::GGUFValue::U32(_) => "u32",
+                crate::gguf::GGUFValue::I32(_) => "i32",
+                crate::gguf::GGUFValue::F32(_) => "f32",
+                crate::gguf::GGUFValue::U64(_) => "u64",
+                crate::gguf::GGUFValue::I64(_) => "i64",
+                crate::gguf::GGUFValue::F64(_) => "f64",
+                crate::gguf::GGUFValue::Bool(_) => "bool",
+                crate::gguf::GGUFValue::String(_) => "string",
+                crate::gguf::GGUFValue::Array(_) => "array",
+            };
+
+            self.metadata.push(MetadataInfo {
+                name: key.clone(),
+                value: value.to_string(),
+                value_type: value_type.to_string(),
+            });
+        }
+
+        // Load tensors
         for tensor in &gguf.tensors {
             let shape: Vec<usize> = tensor.dimensions.iter().map(|&d| d as usize).collect();
             let dtype = tensor.tensor_type.to_string();
@@ -125,7 +154,11 @@ impl Explorer {
     }
 
     fn build_tree(&mut self) {
-        self.tree = TreeBuilder::build_tree(&self.tensors);
+        if self.metadata.is_empty() {
+            self.tree = TreeBuilder::build_tree(&self.tensors);
+        } else {
+            self.tree = TreeBuilder::build_tree_mixed(&self.tensors, &self.metadata);
+        }
         self.flatten_tree();
     }
 
@@ -235,12 +268,22 @@ impl Explorer {
                 TreeNode::Tensor { info } => {
                     self.show_tensor_detail(info);
                 }
+                TreeNode::Metadata { info } => {
+                    self.show_metadata_detail(info);
+                }
             }
         }
     }
 
     fn show_tensor_detail(&self, tensor: &TensorInfo) {
         if UI::draw_tensor_detail(tensor).is_ok() {
+            // Wait for any key press
+            let _ = event::read();
+        }
+    }
+
+    fn show_metadata_detail(&self, metadata: &MetadataInfo) {
+        if UI::draw_metadata_detail(metadata).is_ok() {
             // Wait for any key press
             let _ = event::read();
         }

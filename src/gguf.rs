@@ -193,6 +193,48 @@ impl std::fmt::Display for GGMLType {
     }
 }
 
+impl std::fmt::Display for GGUFValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GGUFValue::U8(v) => write!(f, "{}", v),
+            GGUFValue::I8(v) => write!(f, "{}", v),
+            GGUFValue::U16(v) => write!(f, "{}", v),
+            GGUFValue::I16(v) => write!(f, "{}", v),
+            GGUFValue::U32(v) => write!(f, "{}", v),
+            GGUFValue::I32(v) => write!(f, "{}", v),
+            GGUFValue::F32(v) => write!(f, "{}", v),
+            GGUFValue::U64(v) => write!(f, "{}", v),
+            GGUFValue::I64(v) => write!(f, "{}", v),
+            GGUFValue::F64(v) => write!(f, "{}", v),
+            GGUFValue::Bool(v) => write!(f, "{}", v),
+            GGUFValue::String(v) => write!(f, "\"{}\"", v),
+            GGUFValue::Array(arr) => {
+                if arr.len() <= 5 {
+                    // Show small arrays in full
+                    write!(f, "[")?;
+                    for (i, item) in arr.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{}", item)?;
+                    }
+                    write!(f, "]")
+                } else {
+                    // Show truncated arrays
+                    write!(
+                        f,
+                        "[{}, {}, ..., {} ({})]",
+                        arr[0],
+                        arr[1],
+                        arr[arr.len() - 1],
+                        arr.len()
+                    )
+                }
+            }
+        }
+    }
+}
+
 impl GGUFFile {
     pub fn read(data: &[u8]) -> Result<Self> {
         let mut cursor = Cursor::new(data);
