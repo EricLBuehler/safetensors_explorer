@@ -12,15 +12,15 @@ use crate::explorer::Explorer;
 
 #[derive(Parser)]
 #[command(name = "safetensors-explorer")]
-#[command(about = "Interactive explorer for SafeTensors files")]
+#[command(about = "Interactive explorer for SafeTensors and GGUF files")]
 struct Args {
-    #[arg(help = "SafeTensors files or directories to explore")]
+    #[arg(help = "SafeTensors and GGUF files or directories to explore")]
     paths: Vec<PathBuf>,
 
     #[arg(
         short,
         long,
-        help = "Recursively search directories for SafeTensors files"
+        help = "Recursively search directories for SafeTensors and GGUF files"
     )]
     recursive: bool,
 }
@@ -29,15 +29,17 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     if args.paths.is_empty() {
-        eprintln!("Error: Please specify one or more SafeTensors files or directories to explore.");
-        eprintln!("Usage: safetensors-explorer <file1.safetensors> [directory] ...");
+        eprintln!(
+            "Error: Please specify one or more SafeTensors or GGUF files or directories to explore."
+        );
+        eprintln!("Usage: safetensors-explorer <file1.safetensors> [file2.gguf] [directory] ...");
         std::process::exit(1);
     }
 
     let files = collect_safetensors_files(&args.paths, args.recursive)?;
 
     if files.is_empty() {
-        eprintln!("Error: No SafeTensors files found in the specified paths.");
+        eprintln!("Error: No SafeTensors or GGUF files found in the specified paths.");
         std::process::exit(1);
     }
 
@@ -55,10 +57,11 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
         }
 
         if path.is_file() {
-            if path.extension().and_then(|s| s.to_str()) == Some("safetensors") {
+            let ext = path.extension().and_then(|s| s.to_str());
+            if ext == Some("safetensors") || ext == Some("gguf") {
                 files.push(path.clone());
             } else {
-                eprintln!("Warning: Skipping non-SafeTensors file: {}", path.display());
+                eprintln!("Warning: Skipping unsupported file: {}", path.display());
             }
         } else if path.is_dir() {
             // Check for SafeTensors index file first
@@ -73,16 +76,24 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
                 }
             } else {
                 // Fallback to directory scanning
-                let pattern = if recursive {
-                    format!("{}/**/*.safetensors", path.display())
+                let patterns = if recursive {
+                    vec![
+                        format!("{}/**/*.safetensors", path.display()),
+                        format!("{}/**/*.gguf", path.display()),
+                    ]
                 } else {
-                    format!("{}/*.safetensors", path.display())
+                    vec![
+                        format!("{}/*.safetensors", path.display()),
+                        format!("{}/*.gguf", path.display()),
+                    ]
                 };
 
-                for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
-                    match entry {
-                        Ok(file_path) => files.push(file_path),
-                        Err(e) => eprintln!("Warning: Error reading file: {}", e),
+                for pattern in patterns {
+                    for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
+                        match entry {
+                            Ok(file_path) => files.push(file_path),
+                            Err(e) => eprintln!("Warning: Error reading file: {}", e),
+                        }
                     }
                 }
             }

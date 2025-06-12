@@ -5,7 +5,7 @@ edition = "2024"
 repository = "https://github.com/EricLBuehler/safetensors_explorer"
 license = "MIT"
 authors = ["Eric Buehler"]
-description = "CLI utility to inspect and explore .safetensors files"
+description = "CLI utility to inspect and explore .safetensors and .gguf files"
 
 [dependencies]
 safetensors = "0.4"
@@ -14,3 +14,4 @@ anyhow = "1.0"
 crossterm = "0.28"
 serde_json = "1.0"
 glob = "0.3"
+gguf = "0.1"

@@ -5,6 +5,7 @@ use crossterm::{
     execute,
     terminal::{self, ClearType},
 };
+use gguf::GGUFFile;
 use safetensors::SafeTensors;
 use std::{
     fs::File,
@@ -39,36 +40,101 @@ impl Explorer {
     fn load_all_files(&mut self) -> Result<()> {
         self.tensors.clear();
 
-        for file_path in &self.files {
-            let mut file = File::open(file_path)
-                .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
+        let files = self.files.clone();
+        for file_path in &files {
+            let extension = file_path.extension().and_then(|s| s.to_str());
 
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
-
-            let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
-                format!("Failed to parse SafeTensors file: {}", file_path.display())
-            })?;
-
-            for name in tensors.names() {
-                let tensor = tensors.tensor(name)?;
-                let shape = tensor.shape().to_vec();
-                let dtype = format!("{:?}", tensor.dtype());
-                let size_bytes = tensor.data().len();
-
-                self.tensors.push(TensorInfo {
-                    name: name.to_string(),
-                    dtype,
-                    shape,
-                    size_bytes,
-                });
+            match extension {
+                Some("safetensors") => {
+                    self.load_safetensors_file(file_path)?;
+                }
+                Some("gguf") => {
+                    self.load_gguf_file(file_path)?;
+                }
+                _ => {
+                    eprintln!("Warning: Unsupported file format: {}", file_path.display());
+                }
             }
         }
 
         self.tensors
             .sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
         self.build_tree();
+        Ok(())
+    }
+
+    fn load_safetensors_file(&mut self, file_path: &PathBuf) -> Result<()> {
+        let mut file = File::open(file_path)
+            .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
+
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
+
+        let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
+            format!("Failed to parse SafeTensors file: {}", file_path.display())
+        })?;
+
+        for name in tensors.names() {
+            let tensor = tensors.tensor(name)?;
+            let shape = tensor.shape().to_vec();
+            let dtype = format!("{:?}", tensor.dtype());
+            let size_bytes = tensor.data().len();
+
+            self.tensors.push(TensorInfo {
+                name: name.to_string(),
+                dtype,
+                shape,
+                size_bytes,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn load_gguf_file(&mut self, file_path: &PathBuf) -> Result<()> {
+        let mut file = File::open(file_path)
+            .with_context(|| format!("Failed to open file: {}", file_path.display()))?;
+
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
+
+        let gguf = GGUFFile::read(&buffer)
+            .map_err(|e| anyhow::anyhow!("Failed to parse GGUF file: {}", e))?
+            .ok_or_else(|| anyhow::anyhow!("GGUF file is empty or invalid"))?;
+
+        for tensor in &gguf.tensors {
+            let shape: Vec<usize> = tensor.dimensions.iter().map(|&d| d as usize).collect();
+            let dtype = format!("{:?}", tensor.tensor_type);
+            // For GGUF, we need to calculate size based on shape and data type
+            let element_size = match tensor.tensor_type {
+                gguf::GGMLType::F32 => 4,
+                gguf::GGMLType::F16 => 2,
+                gguf::GGMLType::Q4_0 => 1, // Approximate for quantized types
+                gguf::GGMLType::Q4_1 => 1,
+                gguf::GGMLType::Q5_0 => 1,
+                gguf::GGMLType::Q5_1 => 1,
+                gguf::GGMLType::Q8_0 => 1,
+                gguf::GGMLType::Q8_1 => 1,
+                gguf::GGMLType::Q2K => 1,
+                gguf::GGMLType::Q3K => 1,
+                gguf::GGMLType::Q4K => 1,
+                gguf::GGMLType::Q5K => 1,
+                gguf::GGMLType::Q6K => 1,
+                gguf::GGMLType::Q8K => 1,
+                _ => 1,
+            };
+            let size_bytes = shape.iter().product::<usize>() * element_size;
+
+            self.tensors.push(TensorInfo {
+                name: tensor.name.clone(),
+                dtype,
+                shape,
+                size_bytes,
+            });
+        }
+
         Ok(())
     }
 
