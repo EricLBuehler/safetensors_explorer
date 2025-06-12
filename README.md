@@ -1,17 +1,18 @@
 # SafeTensors Explorer
 
-An interactive terminal-based explorer for SafeTensors files, designed to help you visualize and navigate the structure of machine learning models.
+An interactive terminal-based explorer for SafeTensors and GGUF files, designed to help you visualize and navigate the structure of machine learning models.
 
 ## Features
 
-- 🔍 **Interactive browsing** of SafeTensors file structure
+- 🔍 **Interactive browsing** of SafeTensors and GGUF file structures
 - 📁 **Hierarchical tree view** with expandable/collapsible groups
 - 🔢 **Smart numeric sorting** for layer numbers (e.g., layer.0, layer.1, layer.2, ..., layer.10)
 - 📊 **Tensor details** including shape, data type, and size
-- 🔗 **Multi-file support** - automatically merges multiple SafeTensors files into a unified view
+- 🔗 **Multi-file support** - automatically merges multiple files into a unified view
 - 📂 **Directory support** - explore entire model directories with automatic SafeTensors index detection
 - 📏 **Human-readable sizes** (B, KB, MB, GB)
 - ⌨️ **Keyboard navigation** for smooth exploration
+- 🧠 **GGUF support** - view GGML format tensors with quantization types
 
 ## Installation
 
@@ -37,13 +38,17 @@ cargo build --release
 # Explore a single SafeTensors file
 safetensors_explorer model.safetensors
 
+# Explore a GGUF file
+safetensors_explorer model.gguf
+
 # Or if building from source
 cargo run -- model.safetensors
+cargo run -- model.gguf
 ```
 
 ### Directory exploration
 ```bash
-# Explore all SafeTensors files in a directory
+# Explore all SafeTensors and GGUF files in a directory
 safetensors_explorer /path/to/model/directory
 
 # Recursively search subdirectories
@@ -58,11 +63,14 @@ safetensors_explorer /path/to/huggingface/model
 # Explore multiple files as a unified model
 safetensors_explorer model-00001-of-00003.safetensors model-00002-of-00003.safetensors model-00003-of-00003.safetensors
 
+# Mix SafeTensors and GGUF files
+safetensors_explorer model.safetensors model.gguf
+
 # Mix files and directories
 safetensors_explorer model.safetensors /path/to/additional/models
 
 # Using wildcards
-safetensors_explorer *.safetensors
+safetensors_explorer *.safetensors *.gguf
 ```
 
 ### Keyboard Controls
@@ -112,9 +120,10 @@ Selected: 1/342 | Scroll: 0
 
 ### Supported Formats
 - SafeTensors files (`.safetensors`)
+- GGUF files (`.gguf`) with GGML tensor types including quantized formats
 - SafeTensors index files (`model.safetensors.index.json`)
 - Directory scanning with recursive search option
-- All tensor data types supported by the SafeTensors format
+- All tensor data types supported by the SafeTensors and GGML formats
 
 ### Performance
 - Memory efficient: Only loads tensor metadata, not the actual tensor data
@@ -124,6 +133,7 @@ Selected: 1/342 | Scroll: 0
 ## Dependencies
 
 - `safetensors` - For reading SafeTensors files
+- `gguf` - For reading GGUF files
 - `crossterm` - For terminal UI and keyboard input
 - `clap` - For command-line argument parsing
 - `anyhow` - For error handling
