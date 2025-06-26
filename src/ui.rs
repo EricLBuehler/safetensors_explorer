@@ -7,7 +7,7 @@ use crossterm::{
 use std::io::{self, Write};
 
 use crate::tree::{MetadataInfo, TensorInfo, TreeNode};
-use crate::utils::{format_shape, format_size};
+use crate::utils::{format_parameters, format_shape, format_size};
 
 pub struct UI;
 
@@ -17,6 +17,7 @@ impl UI {
         current_file: &str,
         file_idx: usize,
         total_files: usize,
+        total_parameters: usize,
         selected_idx: usize,
         scroll_offset: usize,
     ) -> Result<usize> {
@@ -84,7 +85,8 @@ impl UI {
         execute!(stdout, cursor::MoveTo(0, terminal_height - 1))?;
         writeln!(
             stdout,
-            "Selected: {}/{} | Scroll: {}\r",
+            "Total Parameters: {} Selected: {}/{} | Scroll: {}\r",
+            format_parameters(total_parameters),
             selected_idx + 1,
             tree.len(),
             new_scroll_offset
