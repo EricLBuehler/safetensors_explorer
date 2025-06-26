@@ -25,6 +25,7 @@ pub struct Explorer {
     selected_idx: usize,
     scroll_offset: usize,
     flattened_tree: Vec<(TreeNode, usize)>,
+    total_parameters: usize,
 }
 
 impl Explorer {
@@ -37,6 +38,7 @@ impl Explorer {
             selected_idx: 0,
             scroll_offset: 0,
             flattened_tree: Vec::new(),
+            total_parameters: 0,
         }
     }
 
@@ -63,6 +65,7 @@ impl Explorer {
 
         self.tensors
             .sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
+        self.total_parameters = self.tensors.iter().map(|t| t.num_elements).sum::<usize>();
         self.build_tree();
         Ok(())
     }
@@ -82,6 +85,7 @@ impl Explorer {
         for name in tensors.names() {
             let tensor = tensors.tensor(name)?;
             let shape = tensor.shape().to_vec();
+            let num_elements = shape.iter().product::<usize>();
             let dtype = format!("{:?}", tensor.dtype());
             let size_bytes = tensor.data().len();
 
@@ -90,6 +94,7 @@ impl Explorer {
                 dtype,
                 shape,
                 size_bytes,
+                num_elements,
             });
         }
 
@@ -138,15 +143,16 @@ impl Explorer {
             let dtype = tensor.tensor_type.to_string();
 
             // Calculate size using the element size from our custom implementation
-            let total_elements = shape.iter().product::<usize>();
+            let num_elements = shape.iter().product::<usize>();
             let size_bytes =
-                (total_elements as f32 * tensor.tensor_type.element_size_bytes()) as usize;
+                (num_elements as f32 * tensor.tensor_type.element_size_bytes()) as usize;
 
             self.tensors.push(TensorInfo {
                 name: tensor.name.clone(),
                 dtype,
                 shape,
                 size_bytes,
+                num_elements,
             });
         }
 
@@ -198,6 +204,7 @@ impl Explorer {
                 &title,
                 0,
                 1,
+                self.total_parameters,
                 self.selected_idx,
                 self.scroll_offset,
             )?;

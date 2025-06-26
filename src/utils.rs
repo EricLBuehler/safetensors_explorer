@@ -25,3 +25,15 @@ pub fn format_size(bytes: usize) -> String {
         format!("{:.1} {}", size, UNITS[unit_idx])
     }
 }
+
+pub fn format_parameters(params: usize) -> String {
+    if params < 1_000 {
+        format!("{params}")
+    } else if params < 1_000_000 {
+        format!("{:.1}K", params as f64 / 1_000.0)
+    } else if params < 1_000_000_000 {
+        format!("{:.1}M", params as f64 / 1_000_000.0)
+    } else {
+        format!("{:.1}B", params as f64 / 1_000_000_000.0)
+    }
+}

@@ -6,6 +6,7 @@ pub struct TensorInfo {
     pub dtype: String,
     pub shape: Vec<usize>,
     pub size_bytes: usize,
+    pub num_elements: usize,
 }
 
 #[derive(Debug, Clone)]
