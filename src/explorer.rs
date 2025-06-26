@@ -14,7 +14,7 @@ use std::{
 
 use crate::gguf::GGUFFile;
 
-use crate::tree::{natural_sort_key, MetadataInfo, TensorInfo, TreeBuilder, TreeNode};
+use crate::tree::{MetadataInfo, TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
 use crate::ui::UI;
 
 pub struct Explorer {
