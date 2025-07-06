@@ -228,25 +228,39 @@ impl TreeBuilder {
         }
     }
 
-    pub fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) -> bool {
+    pub fn toggle_node_by_index(target_idx: usize, nodes: &mut [TreeNode]) -> bool {
+        let mut current_idx = 0;
+        Self::toggle_node_by_index_recursive(target_idx, nodes, &mut current_idx)
+    }
+
+    fn toggle_node_by_index_recursive(
+        target_idx: usize,
+        nodes: &mut [TreeNode],
+        current_idx: &mut usize,
+    ) -> bool {
         for node in nodes {
-            match node {
-                TreeNode::Group {
-                    name,
-                    expanded,
-                    children,
-                    ..
-                } => {
-                    if name == target_name {
-                        *expanded = !*expanded;
-                        return true;
-                    }
-                    if Self::toggle_node_by_name(target_name, children) {
+            // Check if this is the target node
+            if *current_idx == target_idx {
+                if let TreeNode::Group { expanded, .. } = node {
+                    *expanded = !*expanded;
+                    return true;
+                }
+                return false; // Target was not a group
+            }
+
+            // Increment for this node
+            *current_idx += 1;
+
+            // If it's an expanded group, recurse into children
+            if let TreeNode::Group {
+                children, expanded, ..
+            } = node
+            {
+                if *expanded {
+                    if Self::toggle_node_by_index_recursive(target_idx, children, current_idx) {
                         return true;
                     }
                 }
-                TreeNode::Tensor { .. } => {}
-                TreeNode::Metadata { .. } => {}
             }
         }
         false

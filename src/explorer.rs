@@ -271,10 +271,9 @@ impl Explorer {
             let (selected_node, _) = &self.flattened_tree[self.selected_idx];
 
             match selected_node {
-                TreeNode::Group { name, .. } => {
-                    let name = name.clone();
+                TreeNode::Group { .. } => {
                     let mut tree_clone = self.tree.clone();
-                    let _ = TreeBuilder::toggle_node_by_name(&name, &mut tree_clone);
+                    let _ = TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
                     self.tree = tree_clone;
                     self.flatten_tree();
                 }
