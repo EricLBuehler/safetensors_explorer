@@ -185,7 +185,7 @@ impl UI {
         let lines = metadata.value.lines();
         for line in lines.take(20) {
             // Limit to 20 lines
-            writeln!(stdout, "  {}\r", line)?;
+            writeln!(stdout, "  {line}\r")?;
         }
 
         writeln!(stdout, "\r")?;

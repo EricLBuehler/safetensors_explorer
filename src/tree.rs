@@ -168,7 +168,7 @@ impl TreeBuilder {
         for tensor in tensors {
             let remaining = tensor
                 .name
-                .strip_prefix(&format!("{}.", prefix))
+                .strip_prefix(&format!("{prefix}."))
                 .unwrap_or(&tensor.name);
             let parts: Vec<&str> = remaining.split('.').collect();
 
@@ -189,7 +189,7 @@ impl TreeBuilder {
         for (group_name, group_tensors) in groups {
             let tensor_count = group_tensors.len();
             let total_size = group_tensors.iter().map(|t| t.size_bytes).sum();
-            let full_prefix = format!("{}.{}", prefix, group_name);
+            let full_prefix = format!("{prefix}.{group_name}");
             let children = Self::build_subtree(&group_tensors, &full_prefix);
 
             result.push(TreeNode::Group {
@@ -228,24 +228,41 @@ impl TreeBuilder {
         }
     }
 
-    pub fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) {
+    pub fn toggle_node_by_index(target_idx: usize, nodes: &mut [TreeNode]) -> bool {
+        let mut current_idx = 0;
+        Self::toggle_node_by_index_recursive(target_idx, nodes, &mut current_idx)
+    }
+
+    fn toggle_node_by_index_recursive(
+        target_idx: usize,
+        nodes: &mut [TreeNode],
+        current_idx: &mut usize,
+    ) -> bool {
         for node in nodes {
-            match node {
-                TreeNode::Group {
-                    name,
-                    expanded,
-                    children,
-                    ..
-                } => {
-                    if name == target_name {
-                        *expanded = !*expanded;
-                        return;
-                    }
-                    Self::toggle_node_by_name(target_name, children);
+            // Check if this is the target node
+            if *current_idx == target_idx {
+                if let TreeNode::Group { expanded, .. } = node {
+                    *expanded = !*expanded;
+                    return true;
                 }
-                TreeNode::Tensor { .. } => {}
-                TreeNode::Metadata { .. } => {}
+                return false; // Target was not a group
+            }
+
+            // Increment for this node
+            *current_idx += 1;
+
+            // If it's an expanded group, recurse into children
+            if let TreeNode::Group {
+                children, expanded, ..
+            } = node
+            {
+                if *expanded
+                    && Self::toggle_node_by_index_recursive(target_idx, children, current_idx)
+                {
+                    return true;
+                }
             }
         }
+        false
     }
 }

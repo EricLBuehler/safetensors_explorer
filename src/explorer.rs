@@ -7,6 +7,7 @@ use crossterm::{
 };
 use safetensors::SafeTensors;
 use std::{
+    collections::HashSet,
     fs::File,
     io::{self, Read},
     path::PathBuf,
@@ -62,6 +63,11 @@ impl Explorer {
                 }
             }
         }
+
+        // Deduplicate tensors by name
+        let mut seen_names = HashSet::new();
+        self.tensors
+            .retain(|tensor| seen_names.insert(tensor.name.clone()));
 
         self.tensors
             .sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
@@ -265,10 +271,9 @@ impl Explorer {
             let (selected_node, _) = &self.flattened_tree[self.selected_idx];
 
             match selected_node {
-                TreeNode::Group { name, .. } => {
-                    let name = name.clone();
+                TreeNode::Group { .. } => {
                     let mut tree_clone = self.tree.clone();
-                    TreeBuilder::toggle_node_by_name(&name, &mut tree_clone);
+                    let _ = TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
                     self.tree = tree_clone;
                     self.flatten_tree();
                 }
