@@ -7,6 +7,7 @@ use crossterm::{
 };
 use safetensors::SafeTensors;
 use std::{
+    collections::HashSet,
     fs::File,
     io::{self, Read},
     path::PathBuf,
@@ -62,6 +63,11 @@ impl Explorer {
                 }
             }
         }
+
+        // Deduplicate tensors by name
+        let mut seen_names = HashSet::new();
+        self.tensors
+            .retain(|tensor| seen_names.insert(tensor.name.clone()));
 
         self.tensors
             .sort_by(|a, b| natural_sort_key(&a.name).cmp(&natural_sort_key(&b.name)));
