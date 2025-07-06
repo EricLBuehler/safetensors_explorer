@@ -168,7 +168,7 @@ impl TreeBuilder {
         for tensor in tensors {
             let remaining = tensor
                 .name
-                .strip_prefix(&format!("{}.", prefix))
+                .strip_prefix(&format!("{prefix}."))
                 .unwrap_or(&tensor.name);
             let parts: Vec<&str> = remaining.split('.').collect();
 
@@ -189,7 +189,7 @@ impl TreeBuilder {
         for (group_name, group_tensors) in groups {
             let tensor_count = group_tensors.len();
             let total_size = group_tensors.iter().map(|t| t.size_bytes).sum();
-            let full_prefix = format!("{}.{}", prefix, group_name);
+            let full_prefix = format!("{prefix}.{group_name}");
             let children = Self::build_subtree(&group_tensors, &full_prefix);
 
             result.push(TreeNode::Group {
@@ -256,10 +256,10 @@ impl TreeBuilder {
                 children, expanded, ..
             } = node
             {
-                if *expanded {
-                    if Self::toggle_node_by_index_recursive(target_idx, children, current_idx) {
-                        return true;
-                    }
+                if *expanded
+                    && Self::toggle_node_by_index_recursive(target_idx, children, current_idx)
+                {
+                    return true;
                 }
             }
         }

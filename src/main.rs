@@ -93,7 +93,7 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
                     for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
                         match entry {
                             Ok(file_path) => files.push(file_path),
-                            Err(e) => eprintln!("Warning: Error reading file: {}", e),
+                            Err(e) => eprintln!("Warning: Error reading file: {e}"),
                         }
                     }
                 }
