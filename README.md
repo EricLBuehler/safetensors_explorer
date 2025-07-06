@@ -2,6 +2,8 @@
 
 An interactive terminal-based explorer for SafeTensors and GGUF files, designed to help you visualize and navigate the structure of machine learning models.
 
+![Demo](demo.gif)
+
 ## Features
 
 - 🔍 **Interactive browsing** of SafeTensors and GGUF file structures
