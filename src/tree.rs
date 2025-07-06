@@ -228,7 +228,7 @@ impl TreeBuilder {
         }
     }
 
-    pub fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) {
+    pub fn toggle_node_by_name(target_name: &str, nodes: &mut [TreeNode]) -> bool {
         for node in nodes {
             match node {
                 TreeNode::Group {
@@ -239,13 +239,16 @@ impl TreeBuilder {
                 } => {
                     if name == target_name {
                         *expanded = !*expanded;
-                        return;
+                        return true;
                     }
-                    Self::toggle_node_by_name(target_name, children);
+                    if Self::toggle_node_by_name(target_name, children) {
+                        return true;
+                    }
                 }
                 TreeNode::Tensor { .. } => {}
                 TreeNode::Metadata { .. } => {}
             }
         }
+        false
     }
 }

@@ -274,7 +274,7 @@ impl Explorer {
                 TreeNode::Group { name, .. } => {
                     let name = name.clone();
                     let mut tree_clone = self.tree.clone();
-                    TreeBuilder::toggle_node_by_name(&name, &mut tree_clone);
+                    let _ = TreeBuilder::toggle_node_by_name(&name, &mut tree_clone);
                     self.tree = tree_clone;
                     self.flatten_tree();
                 }
