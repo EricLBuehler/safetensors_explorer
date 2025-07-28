@@ -18,7 +18,7 @@ use std::{
 use crate::gguf::GGUFFile;
 
 use crate::tree::{MetadataInfo, TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
-use crate::ui::UI;
+use crate::ui::{DrawConfig, UI};
 
 pub struct Explorer {
     files: Vec<PathBuf>,
@@ -277,17 +277,18 @@ impl Explorer {
                 &self.flattened_tree
             };
 
-            self.scroll_offset = UI::draw_screen(
-                tree_to_display,
-                &title,
-                0,
-                1,
-                self.total_parameters,
-                self.selected_idx,
-                self.scroll_offset,
-                self.search_mode,
-                &self.search_query,
-            )?;
+            let config = DrawConfig {
+                tree: tree_to_display,
+                current_file: &title,
+                file_idx: 0,
+                total_files: 1,
+                total_parameters: self.total_parameters,
+                selected_idx: self.selected_idx,
+                scroll_offset: self.scroll_offset,
+                search_mode: self.search_mode,
+                search_query: &self.search_query,
+            };
+            self.scroll_offset = UI::draw_screen(&config)?;
 
             if let Event::Key(key_event) = event::read()? {
                 match key_event {
