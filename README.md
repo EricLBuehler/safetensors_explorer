@@ -1,6 +1,6 @@
 # `safetensors` Explorer
 
-An interactive terminal-based explorer for `safetensors` and GGUF files, designed to help you visualize and navigate the structure of machine learning models.
+An interactive terminal-based explorer for [`safetensors`](https://huggingface.co/docs/safetensors) and [GGUF](https://huggingface.co/docs/hub/gguf) files, designed to help you visualize and navigate the structure of machine learning models.
 
 ![Demo](demo.gif)
 
