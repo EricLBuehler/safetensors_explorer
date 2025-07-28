@@ -15,7 +15,7 @@ use crate::explorer::Explorer;
 #[command(name = "safetensors-explorer")]
 #[command(about = "Interactive explorer for SafeTensors and GGUF files")]
 struct Args {
-    #[arg(help = "SafeTensors and GGUF files or directories to explore")]
+    #[arg(help = "SafeTensors and GGUF files, directories, or glob patterns to explore (e.g., *.safetensors, model-*.gguf)")]
     paths: Vec<PathBuf>,
 
     #[arg(
@@ -33,7 +33,7 @@ fn main() -> Result<()> {
         eprintln!(
             "Error: Please specify one or more SafeTensors or GGUF files or directories to explore."
         );
-        eprintln!("Usage: safetensors-explorer <file1.safetensors> [file2.gguf] [directory] ...");
+        eprintln!("Usage: safetensors-explorer <file1.safetensors> [file2.gguf] [directory] [*.safetensors] ...");
         std::process::exit(1);
     }
 
@@ -52,48 +52,57 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
     let mut files = Vec::new();
 
     for path in paths {
-        if !path.exists() {
-            eprintln!("Warning: Path does not exist: {}", path.display());
-            continue;
-        }
+        // Try to expand as glob pattern
+        let expanded_paths: Vec<PathBuf> = match glob::glob(&path.to_string_lossy()) {
+            Ok(paths) => paths.filter_map(Result::ok).collect(),
+            Err(_) => vec![path.clone()], // Not a valid glob, treat as literal path
+        };
 
-        if path.is_file() {
-            let ext = path.extension().and_then(|s| s.to_str());
-            if ext == Some("safetensors") || ext == Some("gguf") {
-                files.push(path.clone());
-            } else {
-                eprintln!("Warning: Skipping unsupported file: {}", path.display());
+        // Process each expanded path
+        for expanded_path in expanded_paths {
+            if !expanded_path.exists() {
+                eprintln!("Warning: Path does not exist: {}", expanded_path.display());
+                continue;
             }
-        } else if path.is_dir() {
-            // Check for SafeTensors index file first
-            let index_path = path.join("model.safetensors.index.json");
-            if index_path.exists() {
-                let index_files = parse_safetensors_index(&index_path)?;
-                for file in index_files {
-                    let full_path = path.join(file);
-                    if full_path.exists() {
-                        files.push(full_path);
-                    }
-                }
-            } else {
-                // Fallback to directory scanning
-                let patterns = if recursive {
-                    vec![
-                        format!("{}/**/*.safetensors", path.display()),
-                        format!("{}/**/*.gguf", path.display()),
-                    ]
-                } else {
-                    vec![
-                        format!("{}/*.safetensors", path.display()),
-                        format!("{}/*.gguf", path.display()),
-                    ]
-                };
 
-                for pattern in patterns {
-                    for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
-                        match entry {
-                            Ok(file_path) => files.push(file_path),
-                            Err(e) => eprintln!("Warning: Error reading file: {e}"),
+            if expanded_path.is_file() {
+                let ext = expanded_path.extension().and_then(|s| s.to_str());
+                if ext == Some("safetensors") || ext == Some("gguf") {
+                    files.push(expanded_path.clone());
+                } else {
+                    eprintln!("Warning: Skipping unsupported file: {}", expanded_path.display());
+                }
+            } else if expanded_path.is_dir() {
+                // Check for SafeTensors index file first
+                let index_path = expanded_path.join("model.safetensors.index.json");
+                if index_path.exists() {
+                    let index_files = parse_safetensors_index(&index_path)?;
+                    for file in index_files {
+                        let full_path = expanded_path.join(file);
+                        if full_path.exists() {
+                            files.push(full_path);
+                        }
+                    }
+                } else {
+                    // Fallback to directory scanning
+                    let patterns = if recursive {
+                        vec![
+                            format!("{}/**/*.safetensors", expanded_path.display()),
+                            format!("{}/**/*.gguf", expanded_path.display()),
+                        ]
+                    } else {
+                        vec![
+                            format!("{}/*.safetensors", expanded_path.display()),
+                            format!("{}/*.gguf", expanded_path.display()),
+                        ]
+                    };
+
+                    for pattern in patterns {
+                        for entry in glob::glob(&pattern).context("Failed to read glob pattern")? {
+                            match entry {
+                                Ok(file_path) => files.push(file_path),
+                                Err(e) => eprintln!("Warning: Error reading file: {e}"),
+                            }
                         }
                     }
                 }

@@ -12,6 +12,7 @@ An interactive terminal-based explorer for SafeTensors and GGUF files, designed 
 - 📊 **Tensor details** including shape, data type, and size
 - 🔗 **Multi-file support** - automatically merges multiple files into a unified view
 - 📂 **Directory support** - explore entire model directories with automatic SafeTensors index detection
+- 🌟 **Glob pattern support** - use wildcards to select multiple files (e.g., `*.safetensors`, `model-*.gguf`)
 - 📏 **Human-readable sizes** (B, KB, MB, GB)
 - ⌨️ **Keyboard navigation** for smooth exploration
 - 🧠 **GGUF support** - view GGML format tensors with quantization types
@@ -70,9 +71,24 @@ safetensors_explorer model.safetensors model.gguf
 
 # Mix files and directories
 safetensors_explorer model.safetensors /path/to/additional/models
+```
 
-# Using wildcards
+### Glob pattern support
+```bash
+# Use wildcards to select multiple files
+safetensors_explorer *.safetensors
+
+# Match files with specific patterns
+safetensors_explorer model-*.gguf
+
+# Match numbered checkpoint files
+safetensors_explorer checkpoint-[0-9]*.safetensors
+
+# Combine multiple patterns
 safetensors_explorer *.safetensors *.gguf
+
+# Mix glob patterns with explicit paths
+safetensors_explorer model.safetensors checkpoint-*.safetensors
 ```
 
 ### Keyboard Controls
