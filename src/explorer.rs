@@ -5,6 +5,8 @@ use crossterm::{
     execute,
     terminal::{self, ClearType},
 };
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
 use safetensors::SafeTensors;
 use std::{
     collections::HashSet,
@@ -16,7 +18,7 @@ use std::{
 use crate::gguf::GGUFFile;
 
 use crate::tree::{MetadataInfo, TensorInfo, TreeBuilder, TreeNode, natural_sort_key};
-use crate::ui::UI;
+use crate::ui::{DrawConfig, UI};
 
 pub struct Explorer {
     files: Vec<PathBuf>,
@@ -27,6 +29,9 @@ pub struct Explorer {
     scroll_offset: usize,
     flattened_tree: Vec<(TreeNode, usize)>,
     total_parameters: usize,
+    search_query: String,
+    search_mode: bool,
+    filtered_tree: Vec<(TreeNode, usize)>,
 }
 
 impl Explorer {
@@ -40,6 +45,9 @@ impl Explorer {
             scroll_offset: 0,
             flattened_tree: Vec::new(),
             total_parameters: 0,
+            search_query: String::new(),
+            search_mode: false,
+            filtered_tree: Vec::new(),
         }
     }
 
@@ -191,6 +199,49 @@ impl Explorer {
 
     fn flatten_tree(&mut self) {
         self.flattened_tree = TreeBuilder::flatten_tree(&self.tree);
+        self.update_filtered_tree();
+    }
+
+    fn update_filtered_tree(&mut self) {
+        if self.search_query.is_empty() {
+            self.filtered_tree = self.flattened_tree.clone();
+        } else {
+            let matcher = SkimMatcherV2::default();
+            let mut scored_results: Vec<(TreeNode, i64)> = Vec::new();
+
+            // Search through ALL tensors, not just the flattened tree
+            for tensor in &self.tensors {
+                if let Some(score) = matcher.fuzzy_match(&tensor.name, &self.search_query) {
+                    scored_results.push((
+                        TreeNode::Tensor {
+                            info: tensor.clone(),
+                        },
+                        score,
+                    ));
+                }
+            }
+
+            // Also search through metadata if present
+            for metadata in &self.metadata {
+                if let Some(score) = matcher.fuzzy_match(&metadata.name, &self.search_query) {
+                    scored_results.push((
+                        TreeNode::Metadata {
+                            info: metadata.clone(),
+                        },
+                        score,
+                    ));
+                }
+            }
+
+            // Sort by score (highest first)
+            scored_results.sort_by(|a, b| b.1.cmp(&a.1));
+
+            // Create a flat list with depth 0 for all results
+            self.filtered_tree = scored_results
+                .into_iter()
+                .map(|(node, _)| (node, 0))
+                .collect();
+        }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -220,27 +271,57 @@ impl Explorer {
                 "SafeTensors Model".to_string()
             };
 
-            self.scroll_offset = UI::draw_screen(
-                &self.flattened_tree,
-                &title,
-                0,
-                1,
-                self.total_parameters,
-                self.selected_idx,
-                self.scroll_offset,
-            )?;
+            let tree_to_display = if self.search_mode {
+                &self.filtered_tree
+            } else {
+                &self.flattened_tree
+            };
+
+            let config = DrawConfig {
+                tree: tree_to_display,
+                current_file: &title,
+                file_idx: 0,
+                total_files: 1,
+                total_parameters: self.total_parameters,
+                selected_idx: self.selected_idx,
+                scroll_offset: self.scroll_offset,
+                search_mode: self.search_mode,
+                search_query: &self.search_query,
+            };
+            self.scroll_offset = UI::draw_screen(&config)?;
 
             if let Event::Key(key_event) = event::read()? {
                 match key_event {
                     KeyEvent {
                         code: KeyCode::Char('q'),
                         ..
-                    } => break,
+                    } => {
+                        if self.search_mode {
+                            self.exit_search_mode();
+                        } else {
+                            break;
+                        }
+                    }
                     KeyEvent {
                         code: KeyCode::Char('c'),
                         modifiers: KeyModifiers::CONTROL,
                         ..
                     } => break,
+                    KeyEvent {
+                        code: KeyCode::Char('/'),
+                        ..
+                    } => {
+                        if !self.search_mode {
+                            self.enter_search_mode();
+                        }
+                    }
+                    KeyEvent {
+                        code: KeyCode::Esc, ..
+                    } => {
+                        if self.search_mode {
+                            self.exit_search_mode();
+                        }
+                    }
                     KeyEvent {
                         code: KeyCode::Up, ..
                     } => self.move_selection(-1),
@@ -251,12 +332,42 @@ impl Explorer {
                     KeyEvent {
                         code: KeyCode::Enter,
                         ..
+                    } => {
+                        if self.search_mode {
+                            self.exit_search_mode();
+                        } else {
+                            self.handle_selection();
+                        }
                     }
-                    | KeyEvent {
+                    KeyEvent {
                         code: KeyCode::Char(' '),
                         ..
                     } => {
-                        self.handle_selection();
+                        if !self.search_mode {
+                            self.handle_selection();
+                        }
+                    }
+                    KeyEvent {
+                        code: KeyCode::Backspace,
+                        ..
+                    } => {
+                        if self.search_mode {
+                            self.search_query.pop();
+                            self.update_filtered_tree();
+                            self.selected_idx = 0;
+                            self.scroll_offset = 0;
+                        }
+                    }
+                    KeyEvent {
+                        code: KeyCode::Char(c),
+                        ..
+                    } => {
+                        if self.search_mode {
+                            self.search_query.push(c);
+                            self.update_filtered_tree();
+                            self.selected_idx = 0;
+                            self.scroll_offset = 0;
+                        }
                     }
                     // Remove left/right file navigation since we're showing all files merged
                     _ => {}
@@ -268,29 +379,61 @@ impl Explorer {
     }
 
     fn move_selection(&mut self, delta: i32) {
-        if self.flattened_tree.is_empty() {
+        let tree = if self.search_mode {
+            &self.filtered_tree
+        } else {
+            &self.flattened_tree
+        };
+
+        if tree.is_empty() {
             return;
         }
 
         let new_idx = if delta < 0 {
             self.selected_idx.saturating_sub((-delta) as usize)
         } else {
-            (self.selected_idx + delta as usize).min(self.flattened_tree.len() - 1)
+            (self.selected_idx + delta as usize).min(tree.len() - 1)
         };
 
         self.selected_idx = new_idx;
     }
 
+    fn enter_search_mode(&mut self) {
+        self.search_mode = true;
+        self.search_query.clear();
+        self.update_filtered_tree();
+        self.selected_idx = 0;
+        self.scroll_offset = 0;
+    }
+
+    fn exit_search_mode(&mut self) {
+        self.search_mode = false;
+        self.search_query.clear();
+        self.update_filtered_tree();
+        self.selected_idx = 0;
+        self.scroll_offset = 0;
+    }
+
     fn handle_selection(&mut self) {
-        if self.selected_idx < self.flattened_tree.len() {
-            let (selected_node, _) = &self.flattened_tree[self.selected_idx];
+        let tree = if self.search_mode {
+            &self.filtered_tree
+        } else {
+            &self.flattened_tree
+        };
+
+        if self.selected_idx < tree.len() {
+            let (selected_node, _) = &tree[self.selected_idx];
 
             match selected_node {
                 TreeNode::Group { .. } => {
-                    let mut tree_clone = self.tree.clone();
-                    let _ = TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
-                    self.tree = tree_clone;
-                    self.flatten_tree();
+                    // In search mode, groups shouldn't appear, but if they do, do nothing
+                    if !self.search_mode {
+                        let mut tree_clone = self.tree.clone();
+                        let _ =
+                            TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
+                        self.tree = tree_clone;
+                        self.flatten_tree();
+                    }
                 }
                 TreeNode::Tensor { info } => {
                     self.show_tensor_detail(info);

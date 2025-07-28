@@ -9,18 +9,22 @@ use std::io::{self, Write};
 use crate::tree::{MetadataInfo, TensorInfo, TreeNode};
 use crate::utils::{format_parameters, format_shape, format_size};
 
+pub struct DrawConfig<'a> {
+    pub tree: &'a [(TreeNode, usize)],
+    pub current_file: &'a str,
+    pub file_idx: usize,
+    pub total_files: usize,
+    pub total_parameters: usize,
+    pub selected_idx: usize,
+    pub scroll_offset: usize,
+    pub search_mode: bool,
+    pub search_query: &'a str,
+}
+
 pub struct UI;
 
 impl UI {
-    pub fn draw_screen(
-        tree: &[(TreeNode, usize)],
-        current_file: &str,
-        file_idx: usize,
-        total_files: usize,
-        total_parameters: usize,
-        selected_idx: usize,
-        scroll_offset: usize,
-    ) -> Result<usize> {
+    pub fn draw_screen(config: &DrawConfig) -> Result<usize> {
         let mut stdout = io::stdout();
         execute!(
             stdout,
@@ -38,33 +42,46 @@ impl UI {
         writeln!(
             stdout,
             "SafeTensors Explorer - {} ({}/{})\r",
-            current_file,
-            file_idx + 1,
-            total_files
+            config.current_file,
+            config.file_idx + 1,
+            config.total_files
         )?;
-        writeln!(
-            stdout,
-            "Use ↑/↓ to navigate, Enter/Space to expand/collapse, q to quit\r"
-        )?;
+        if config.search_mode {
+            writeln!(
+                stdout,
+                "SEARCH MODE: {} | Type to search, Enter/Esc to exit search\r",
+                if config.search_query.is_empty() {
+                    "_"
+                } else {
+                    config.search_query
+                }
+            )?;
+        } else {
+            writeln!(
+                stdout,
+                "Use ↑/↓ to navigate, Enter/Space to expand/collapse, / to search, q to quit\r"
+            )?;
+        }
         writeln!(stdout, "{}\r", "=".repeat(80))?;
 
         // Calculate scroll offset
-        let new_scroll_offset = if selected_idx >= scroll_offset + available_height {
-            selected_idx.saturating_sub(available_height - 1)
-        } else if selected_idx < scroll_offset {
-            selected_idx
+        let new_scroll_offset = if config.selected_idx >= config.scroll_offset + available_height {
+            config.selected_idx.saturating_sub(available_height - 1)
+        } else if config.selected_idx < config.scroll_offset {
+            config.selected_idx
         } else {
-            scroll_offset
+            config.scroll_offset
         };
 
         // Draw tree
-        for (actual_index, (node, depth)) in tree
+        for (actual_index, (node, depth)) in config
+            .tree
             .iter()
             .enumerate()
             .skip(new_scroll_offset)
             .take(available_height)
         {
-            let is_selected = actual_index == selected_idx;
+            let is_selected = actual_index == config.selected_idx;
 
             if is_selected {
                 execute!(
@@ -83,14 +100,23 @@ impl UI {
 
         // Footer
         execute!(stdout, cursor::MoveTo(0, terminal_height - 1))?;
-        writeln!(
-            stdout,
-            "Total Parameters: {} Selected: {}/{} | Scroll: {}\r",
-            format_parameters(total_parameters),
-            selected_idx + 1,
-            tree.len(),
-            new_scroll_offset
-        )?;
+        if config.search_mode && config.tree.is_empty() {
+            writeln!(
+                stdout,
+                "No results found for \"{}\" | Press Esc to exit search\r",
+                config.search_query
+            )?;
+        } else {
+            writeln!(
+                stdout,
+                "Total Parameters: {} | Selected: {}/{} | Scroll: {} | Matches: {}\r",
+                format_parameters(config.total_parameters),
+                config.selected_idx + 1,
+                config.tree.len(),
+                new_scroll_offset,
+                config.tree.len()
+            )?;
+        }
 
         stdout.flush()?;
         Ok(new_scroll_offset)
@@ -119,12 +145,17 @@ impl UI {
                 )?;
             }
             TreeNode::Tensor { info } => {
-                let short_name = info.name.split('.').next_back().unwrap_or(&info.name);
+                // In search mode (depth 0), show full name; otherwise show short name
+                let display_name = if depth == 0 {
+                    &info.name
+                } else {
+                    info.name.split('.').next_back().unwrap_or(&info.name)
+                };
                 writeln!(
                     stdout,
                     "{}  📄 {} [{}, {}, {}]\r",
                     indent,
-                    short_name,
+                    display_name,
                     info.dtype,
                     format_shape(&info.shape),
                     format_size(info.size_bytes)

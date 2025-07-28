@@ -8,6 +8,7 @@ An interactive terminal-based explorer for [`safetensors`](https://huggingface.c
 
 - 🔍 **Interactive browsing** of `safetensors` and GGUF file structures
 - 📁 **Hierarchical tree view** with expandable/collapsible groups
+- 🔎 **Fuzzy search** - instantly filter tensors with fuzzy matching using `/` key
 - 🔢 **Smart numeric sorting** for layer numbers (e.g., layer.0, layer.1, layer.2, ..., layer.10)
 - 📊 **Tensor details** including shape, data type, and size
 - 🔗 **Multi-file support** - automatically merges multiple files into a unified view
@@ -97,8 +98,20 @@ safetensors_explorer model.safetensors checkpoint-*.safetensors
 |-----|--------|
 | `↑` / `↓` | Navigate up/down through the tree |
 | `Enter` / `Space` | Expand/collapse groups, view tensor details |
-| `q` | Quit the application |
+| `/` | Enter search mode to filter tensors |
+| `Esc` | Exit search mode |
+| `q` | Quit the application (or exit search mode if active) |
 | `Ctrl+C` | Force quit |
+
+### Search Feature
+
+Press `/` to enter search mode and start typing to filter tensors by name. The search:
+- Uses **fuzzy matching** - find tensors even with typos or partial matches (e.g., "attnproj" will match "attn.c_proj.weight")
+- Searches **all tensors** - not just visible ones, regardless of collapsed groups
+- Shows results in a **flat list** with full tensor names
+- Sorts by **relevance** - best matches appear first
+
+Press `Enter` or `Esc` to exit search mode and return to the full tree view.
 
 ## Example Output
 
