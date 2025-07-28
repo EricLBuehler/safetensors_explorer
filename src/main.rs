@@ -15,7 +15,9 @@ use crate::explorer::Explorer;
 #[command(name = "safetensors-explorer")]
 #[command(about = "Interactive explorer for SafeTensors and GGUF files")]
 struct Args {
-    #[arg(help = "SafeTensors and GGUF files, directories, or glob patterns to explore (e.g., *.safetensors, model-*.gguf)")]
+    #[arg(
+        help = "SafeTensors and GGUF files, directories, or glob patterns to explore (e.g., *.safetensors, model-*.gguf)"
+    )]
     paths: Vec<PathBuf>,
 
     #[arg(
@@ -33,7 +35,9 @@ fn main() -> Result<()> {
         eprintln!(
             "Error: Please specify one or more SafeTensors or GGUF files or directories to explore."
         );
-        eprintln!("Usage: safetensors-explorer <file1.safetensors> [file2.gguf] [directory] [*.safetensors] ...");
+        eprintln!(
+            "Usage: safetensors-explorer <file1.safetensors> [file2.gguf] [directory] [*.safetensors] ..."
+        );
         std::process::exit(1);
     }
 
@@ -70,7 +74,10 @@ fn collect_safetensors_files(paths: &[PathBuf], recursive: bool) -> Result<Vec<P
                 if ext == Some("safetensors") || ext == Some("gguf") {
                     files.push(expanded_path.clone());
                 } else {
-                    eprintln!("Warning: Skipping unsupported file: {}", expanded_path.display());
+                    eprintln!(
+                        "Warning: Skipping unsupported file: {}",
+                        expanded_path.display()
+                    );
                 }
             } else if expanded_path.is_dir() {
                 // Check for SafeTensors index file first
