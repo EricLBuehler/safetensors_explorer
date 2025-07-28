@@ -100,8 +100,7 @@ impl UI {
         if search_mode && tree.is_empty() {
             writeln!(
                 stdout,
-                "No results found for \"{}\" | Press Esc to exit search\r",
-                search_query
+                "No results found for \"{search_query}\" | Press Esc to exit search\r"
             )?;
         } else {
             writeln!(
@@ -111,7 +110,7 @@ impl UI {
                 selected_idx + 1,
                 tree.len(),
                 new_scroll_offset,
-                if search_mode { tree.len() } else { tree.len() }
+                tree.len()
             )?;
         }
 
