@@ -207,26 +207,39 @@ impl Explorer {
             self.filtered_tree = self.flattened_tree.clone();
         } else {
             let matcher = SkimMatcherV2::default();
-            let mut scored_results: Vec<((TreeNode, usize), i64)> = Vec::new();
-            
-            for (node, depth) in &self.flattened_tree {
-                let search_text = match node {
-                    TreeNode::Tensor { info } => &info.name,
-                    TreeNode::Group { name, .. } => name,
-                    TreeNode::Metadata { info } => &info.name,
-                };
-                
-                if let Some(score) = matcher.fuzzy_match(search_text, &self.search_query) {
-                    scored_results.push(((node.clone(), *depth), score));
+            let mut scored_results: Vec<(TreeNode, i64)> = Vec::new();
+
+            // Search through ALL tensors, not just the flattened tree
+            for tensor in &self.tensors {
+                if let Some(score) = matcher.fuzzy_match(&tensor.name, &self.search_query) {
+                    scored_results.push((
+                        TreeNode::Tensor {
+                            info: tensor.clone(),
+                        },
+                        score,
+                    ));
                 }
             }
-            
+
+            // Also search through metadata if present
+            for metadata in &self.metadata {
+                if let Some(score) = matcher.fuzzy_match(&metadata.name, &self.search_query) {
+                    scored_results.push((
+                        TreeNode::Metadata {
+                            info: metadata.clone(),
+                        },
+                        score,
+                    ));
+                }
+            }
+
             // Sort by score (highest first)
             scored_results.sort_by(|a, b| b.1.cmp(&a.1));
-            
-            // Extract just the nodes, discarding scores
-            self.filtered_tree = scored_results.into_iter()
-                .map(|(node_info, _)| node_info)
+
+            // Create a flat list with depth 0 for all results
+            self.filtered_tree = scored_results
+                .into_iter()
+                .map(|(node, _)| (node, 0))
                 .collect();
         }
     }
@@ -302,8 +315,7 @@ impl Explorer {
                         }
                     }
                     KeyEvent {
-                        code: KeyCode::Esc,
-                        ..
+                        code: KeyCode::Esc, ..
                     } => {
                         if self.search_mode {
                             self.exit_search_mode();
@@ -413,10 +425,14 @@ impl Explorer {
 
             match selected_node {
                 TreeNode::Group { .. } => {
-                    let mut tree_clone = self.tree.clone();
-                    let _ = TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
-                    self.tree = tree_clone;
-                    self.flatten_tree();
+                    // In search mode, groups shouldn't appear, but if they do, do nothing
+                    if !self.search_mode {
+                        let mut tree_clone = self.tree.clone();
+                        let _ =
+                            TreeBuilder::toggle_node_by_index(self.selected_idx, &mut tree_clone);
+                        self.tree = tree_clone;
+                        self.flatten_tree();
+                    }
                 }
                 TreeNode::Tensor { info } => {
                     self.show_tensor_detail(info);

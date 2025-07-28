@@ -111,11 +111,7 @@ impl UI {
                 selected_idx + 1,
                 tree.len(),
                 new_scroll_offset,
-                if search_mode {
-                    tree.len()
-                } else {
-                    tree.len()
-                }
+                if search_mode { tree.len() } else { tree.len() }
             )?;
         }
 
@@ -146,12 +142,17 @@ impl UI {
                 )?;
             }
             TreeNode::Tensor { info } => {
-                let short_name = info.name.split('.').next_back().unwrap_or(&info.name);
+                // In search mode (depth 0), show full name; otherwise show short name
+                let display_name = if depth == 0 {
+                    &info.name
+                } else {
+                    info.name.split('.').next_back().unwrap_or(&info.name)
+                };
                 writeln!(
                     stdout,
                     "{}  📄 {} [{}, {}, {}]\r",
                     indent,
-                    short_name,
+                    display_name,
                     info.dtype,
                     format_shape(&info.shape),
                     format_size(info.size_bytes)

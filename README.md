@@ -105,7 +105,13 @@ safetensors_explorer model.safetensors checkpoint-*.safetensors
 
 ### Search Feature
 
-Press `/` to enter search mode and start typing to filter tensors by name. The search uses **fuzzy matching**, so you can find tensors even with typos or by typing just a few characters (e.g., "attnproj" will match "attn.c_proj.weight"). Results are sorted by relevance. Press `Enter` or `Esc` to exit search mode and return to the full tree view.
+Press `/` to enter search mode and start typing to filter tensors by name. The search:
+- Uses **fuzzy matching** - find tensors even with typos or partial matches (e.g., "attnproj" will match "attn.c_proj.weight")
+- Searches **all tensors** - not just visible ones, regardless of collapsed groups
+- Shows results in a **flat list** with full tensor names
+- Sorts by **relevance** - best matches appear first
+
+Press `Enter` or `Esc` to exit search mode and return to the full tree view.
 
 ## Example Output
 
