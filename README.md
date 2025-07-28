@@ -1,17 +1,17 @@
-# SafeTensors Explorer
+# `safetensors` Explorer
 
-An interactive terminal-based explorer for SafeTensors and GGUF files, designed to help you visualize and navigate the structure of machine learning models.
+An interactive terminal-based explorer for `safetensors` and GGUF files, designed to help you visualize and navigate the structure of machine learning models.
 
 ![Demo](demo.gif)
 
 ## Features
 
-- 🔍 **Interactive browsing** of SafeTensors and GGUF file structures
+- 🔍 **Interactive browsing** of `safetensors` and GGUF file structures
 - 📁 **Hierarchical tree view** with expandable/collapsible groups
 - 🔢 **Smart numeric sorting** for layer numbers (e.g., layer.0, layer.1, layer.2, ..., layer.10)
 - 📊 **Tensor details** including shape, data type, and size
 - 🔗 **Multi-file support** - automatically merges multiple files into a unified view
-- 📂 **Directory support** - explore entire model directories with automatic SafeTensors index detection
+- 📂 **Directory support** - explore entire model directories with automatic `safetensors` index detection
 - 🌟 **Glob pattern support** - use wildcards to select multiple files (e.g., `*.safetensors`, `model-*.gguf`)
 - 📏 **Human-readable sizes** (B, KB, MB, GB)
 - ⌨️ **Keyboard navigation** for smooth exploration
@@ -38,7 +38,7 @@ cargo build --release
 
 ### Basic usage
 ```bash
-# Explore a single SafeTensors file
+# Explore a single safetensors file
 safetensors_explorer model.safetensors
 
 # Explore a GGUF file
@@ -51,7 +51,7 @@ cargo run -- model.gguf
 
 ### Directory exploration
 ```bash
-# Explore all SafeTensors and GGUF files in a directory
+# Explore all safetensors and GGUF files in a directory
 safetensors_explorer /path/to/model/directory
 
 # Recursively search subdirectories
@@ -66,7 +66,7 @@ safetensors_explorer /path/to/huggingface/model
 # Explore multiple files as a unified model
 safetensors_explorer model-00001-of-00003.safetensors model-00002-of-00003.safetensors model-00003-of-00003.safetensors
 
-# Mix SafeTensors and GGUF files
+# Mix safetensors and GGUF files
 safetensors_explorer model.safetensors model.gguf
 
 # Mix files and directories
@@ -127,8 +127,8 @@ Selected: 1/342 | Scroll: 0
 
 ## How It Works
 
-1. **Path Resolution**: Automatically discovers SafeTensors files from files, directories, or SafeTensors index files
-2. **File Loading**: Loads one or more SafeTensors files and extracts tensor metadata
+1. **Path Resolution**: Automatically discovers `safetensors` files from files, directories, or `safetensors` index files
+2. **File Loading**: Loads one or more `safetensors` files and extracts tensor metadata
 3. **Tree Building**: Organizes tensors into a hierarchical structure based on their names (split by '.')
 4. **Smart Sorting**: Uses natural sorting to handle numeric components correctly
 5. **Interactive Display**: Renders the tree with expansion/collapse functionality
@@ -137,11 +137,11 @@ Selected: 1/342 | Scroll: 0
 ## Technical Details
 
 ### Supported Formats
-- SafeTensors files (`.safetensors`)
+- `safetensors` files (`.safetensors`)
 - GGUF files (`.gguf`) with GGML tensor types including quantized formats
-- SafeTensors index files (`model.safetensors.index.json`)
+- `safetensors` index files (`model.safetensors.index.json`)
 - Directory scanning with recursive search option
-- All tensor data types supported by the SafeTensors and GGML formats
+- All tensor data types supported by the `safetensors` and GGML formats
 
 ### Performance
 - Memory efficient: Only loads tensor metadata, not the actual tensor data
@@ -150,12 +150,12 @@ Selected: 1/342 | Scroll: 0
 
 ## Dependencies
 
-- `safetensors` - For reading SafeTensors files
+- `safetensors` - For reading `safetensors` files
 - `gguf` - For reading GGUF files
 - `crossterm` - For terminal UI and keyboard input
 - `clap` - For command-line argument parsing
 - `anyhow` - For error handling
-- `serde_json` - For parsing SafeTensors index files
+- `serde_json` - For parsing `safetensors` index files
 - `glob` - For directory pattern matching
 
 ## Contributing
