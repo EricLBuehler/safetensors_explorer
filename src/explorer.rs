@@ -84,6 +84,21 @@ impl Explorer {
         file.read_to_end(&mut buffer)
             .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
+        // First, try to read metadata
+        if let Ok((_, metadata)) = SafeTensors::read_metadata(&buffer) {
+            // Check if there's a __metadata__ key in the header
+            if let Some(metadata_value) = metadata.metadata() {
+                // Parse the metadata as key-value pairs
+                for (key, value) in metadata_value {
+                    self.metadata.push(MetadataInfo {
+                        name: key.clone(),
+                        value: value.clone(),
+                        value_type: "string".to_string(),
+                    });
+                }
+            }
+        }
+
         let tensors = SafeTensors::deserialize(&buffer).with_context(|| {
             format!("Failed to parse SafeTensors file: {}", file_path.display())
         })?;
