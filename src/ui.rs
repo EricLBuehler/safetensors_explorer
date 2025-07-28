@@ -20,6 +20,8 @@ impl UI {
         total_parameters: usize,
         selected_idx: usize,
         scroll_offset: usize,
+        search_mode: bool,
+        search_query: &str,
     ) -> Result<usize> {
         let mut stdout = io::stdout();
         execute!(
@@ -42,10 +44,22 @@ impl UI {
             file_idx + 1,
             total_files
         )?;
-        writeln!(
-            stdout,
-            "Use ↑/↓ to navigate, Enter/Space to expand/collapse, q to quit\r"
-        )?;
+        if search_mode {
+            writeln!(
+                stdout,
+                "SEARCH MODE: {} | Type to search, Enter/Esc to exit search\r",
+                if search_query.is_empty() {
+                    "_"
+                } else {
+                    search_query
+                }
+            )?;
+        } else {
+            writeln!(
+                stdout,
+                "Use ↑/↓ to navigate, Enter/Space to expand/collapse, / to search, q to quit\r"
+            )?;
+        }
         writeln!(stdout, "{}\r", "=".repeat(80))?;
 
         // Calculate scroll offset
@@ -83,14 +97,27 @@ impl UI {
 
         // Footer
         execute!(stdout, cursor::MoveTo(0, terminal_height - 1))?;
-        writeln!(
-            stdout,
-            "Total Parameters: {} Selected: {}/{} | Scroll: {}\r",
-            format_parameters(total_parameters),
-            selected_idx + 1,
-            tree.len(),
-            new_scroll_offset
-        )?;
+        if search_mode && tree.is_empty() {
+            writeln!(
+                stdout,
+                "No results found for \"{}\" | Press Esc to exit search\r",
+                search_query
+            )?;
+        } else {
+            writeln!(
+                stdout,
+                "Total Parameters: {} | Selected: {}/{} | Scroll: {} | Matches: {}\r",
+                format_parameters(total_parameters),
+                selected_idx + 1,
+                tree.len(),
+                new_scroll_offset,
+                if search_mode {
+                    tree.len()
+                } else {
+                    tree.len()
+                }
+            )?;
+        }
 
         stdout.flush()?;
         Ok(new_scroll_offset)
