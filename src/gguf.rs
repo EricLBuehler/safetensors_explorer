@@ -79,6 +79,7 @@ pub enum GGMLType {
     F64 = 28,
     IQ1_M = 29,
     BF16 = 30,
+    GGML_TYPE_Q1_58 = 36,
 }
 
 impl GGMLType {
@@ -113,6 +114,7 @@ impl GGMLType {
             28 => Some(GGMLType::F64),
             29 => Some(GGMLType::IQ1_M),
             30 => Some(GGMLType::BF16),
+            36 => Some(GGMLType::GGML_TYPE_Q1_58),
             _ => None,
         }
     }
@@ -152,6 +154,7 @@ impl GGMLType {
             GGMLType::IQ3_S => 0.429_687_5,   // 3.4375 bpw
             GGMLType::IQ4_NL => 0.53125,      // 4.25   bpw
             GGMLType::IQ4_XS => 0.53125,      // 4.25   bpw
+            GGMLType::GGML_TYPE_Q1_58 => 0.1975, // 1.58 / 8
         }
     }
 }
@@ -188,6 +191,7 @@ impl std::fmt::Display for GGMLType {
             GGMLType::IQ2_S => "IQ2_S",
             GGMLType::IQ4_XS => "IQ4_XS",
             GGMLType::IQ1_M => "IQ1_M",
+            GGMLType::GGML_TYPE_Q1_58 => "Q1_58",
         };
         write!(f, "{s}")
     }
