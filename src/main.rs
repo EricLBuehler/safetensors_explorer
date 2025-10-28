@@ -133,10 +133,10 @@ fn parse_safetensors_index(index_path: &PathBuf) -> Result<Vec<String>> {
 
     if let Some(weight_map) = index.get("weight_map").and_then(|v| v.as_object()) {
         for file_name in weight_map.values() {
-            if let Some(file_str) = file_name.as_str() {
-                if !files.contains(&file_str.to_string()) {
-                    files.push(file_str.to_string());
-                }
+            if let Some(file_str) = file_name.as_str()
+                && !files.iter().any(|existing| existing == file_str)
+            {
+                files.push(file_str.to_string());
             }
         }
     }

@@ -145,15 +145,15 @@ impl GGMLType {
             GGMLType::Q8_K => 1.140_625,   // 9.125  bpw
 
             // Importance‑quants (IQ‑family, super‑block 256)
-            GGMLType::IQ1_S => 0.195_312_5,   // 1.5625 bpw
-            GGMLType::IQ1_M => 0.218_75,      // 1.75   bpw
-            GGMLType::IQ2_XXS => 0.257_812_5, // 2.0625 bpw
-            GGMLType::IQ2_XS => 0.289_062_5,  // 2.3125 bpw
-            GGMLType::IQ2_S => 0.3125,        // 2.5    bpw
-            GGMLType::IQ3_XXS => 0.382_812_5, // 3.0625 bpw
-            GGMLType::IQ3_S => 0.429_687_5,   // 3.4375 bpw
-            GGMLType::IQ4_NL => 0.53125,      // 4.25   bpw
-            GGMLType::IQ4_XS => 0.53125,      // 4.25   bpw
+            GGMLType::IQ1_S => 0.195_312_5,      // 1.5625 bpw
+            GGMLType::IQ1_M => 0.218_75,         // 1.75   bpw
+            GGMLType::IQ2_XXS => 0.257_812_5,    // 2.0625 bpw
+            GGMLType::IQ2_XS => 0.289_062_5,     // 2.3125 bpw
+            GGMLType::IQ2_S => 0.3125,           // 2.5    bpw
+            GGMLType::IQ3_XXS => 0.382_812_5,    // 3.0625 bpw
+            GGMLType::IQ3_S => 0.429_687_5,      // 3.4375 bpw
+            GGMLType::IQ4_NL => 0.53125,         // 4.25   bpw
+            GGMLType::IQ4_XS => 0.53125,         // 4.25   bpw
             GGMLType::GGML_TYPE_Q1_58 => 0.1975, // 1.58 / 8
         }
     }
