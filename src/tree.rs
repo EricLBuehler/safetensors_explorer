@@ -219,11 +219,10 @@ impl TreeBuilder {
         if let TreeNode::Group {
             children, expanded, ..
         } = node
+            && *expanded
         {
-            if *expanded {
-                for child in children {
-                    Self::flatten_node(child, depth + 1, flattened);
-                }
+            for child in children {
+                Self::flatten_node(child, depth + 1, flattened);
             }
         }
     }
@@ -255,12 +254,10 @@ impl TreeBuilder {
             if let TreeNode::Group {
                 children, expanded, ..
             } = node
+                && *expanded
+                && Self::toggle_node_by_index_recursive(target_idx, children, current_idx)
             {
-                if *expanded
-                    && Self::toggle_node_by_index_recursive(target_idx, children, current_idx)
-                {
-                    return true;
-                }
+                return true;
             }
         }
         false
