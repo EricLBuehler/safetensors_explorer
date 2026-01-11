@@ -144,25 +144,25 @@ impl Explorer {
         // Load metadata
         for (key, value) in &gguf.metadata {
             let value_type = match value {
-                crate::gguf::GGUFValue::U8(_) => "u8",
-                crate::gguf::GGUFValue::I8(_) => "i8",
-                crate::gguf::GGUFValue::U16(_) => "u16",
-                crate::gguf::GGUFValue::I16(_) => "i16",
-                crate::gguf::GGUFValue::U32(_) => "u32",
-                crate::gguf::GGUFValue::I32(_) => "i32",
-                crate::gguf::GGUFValue::F32(_) => "f32",
-                crate::gguf::GGUFValue::U64(_) => "u64",
-                crate::gguf::GGUFValue::I64(_) => "i64",
-                crate::gguf::GGUFValue::F64(_) => "f64",
-                crate::gguf::GGUFValue::Bool(_) => "bool",
-                crate::gguf::GGUFValue::String(_) => "string",
-                crate::gguf::GGUFValue::Array(_) => "array",
+                crate::gguf::GGUFValue::U8(_) => "u8".to_string(),
+                crate::gguf::GGUFValue::I8(_) => "i8".to_string(),
+                crate::gguf::GGUFValue::U16(_) => "u16".to_string(),
+                crate::gguf::GGUFValue::I16(_) => "i16".to_string(),
+                crate::gguf::GGUFValue::U32(_) => "u32".to_string(),
+                crate::gguf::GGUFValue::I32(_) => "i32".to_string(),
+                crate::gguf::GGUFValue::F32(_) => "f32".to_string(),
+                crate::gguf::GGUFValue::U64(_) => "u64".to_string(),
+                crate::gguf::GGUFValue::I64(_) => "i64".to_string(),
+                crate::gguf::GGUFValue::F64(_) => "f64".to_string(),
+                crate::gguf::GGUFValue::Bool(_) => "bool".to_string(),
+                crate::gguf::GGUFValue::String(_) => "string".to_string(),
+                crate::gguf::GGUFValue::Array(ty, _) => format!("array<{}>", ty),
             };
 
             self.metadata.push(MetadataInfo {
                 name: key.clone(),
                 value: value.to_string(),
-                value_type: value_type.to_string(),
+                value_type: value_type,
             });
         }
 
