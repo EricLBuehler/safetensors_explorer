@@ -28,6 +28,68 @@ pub struct GGUFTensorInfo {
     pub offset: u64,
 }
 
+#[repr(u32)]
+#[derive(Debug, Clone)]
+pub enum MetadataType {
+    U8 = 0,
+    I8 = 1,
+    U16 = 2,
+    I16 = 3,
+    U32 = 4,
+    I32 = 5,
+    F32 = 6,
+    U64 = 10,
+    I64 = 11,
+    F64 = 12,
+    Bool = 7,
+    String = 8,
+    Array = 9,
+}
+
+impl TryFrom<u32> for MetadataType {
+    type Error = anyhow::Error;
+    fn try_from(val: u32) -> Result<Self, Self::Error> {
+        return match val {
+            0 => Ok(MetadataType::U8),
+            1 => Ok(MetadataType::I8),
+            2 => Ok(MetadataType::U16),
+            3 => Ok(MetadataType::I16),
+            4 => Ok(MetadataType::U32),
+            5 => Ok(MetadataType::I32),
+            6 => Ok(MetadataType::F32),
+            7 => Ok(MetadataType::Bool),
+            8 => Ok(MetadataType::String),
+            9 => Ok(MetadataType::Array),
+            10 => Ok(MetadataType::U64),
+            11 => Ok(MetadataType::I64),
+            12 => Ok(MetadataType::F64),
+            _ => Err(anyhow::anyhow!("Invalid metadata type: {val}")),
+        };
+    }
+}
+
+impl std::fmt::Display for MetadataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let repr = match self {
+            MetadataType::U8 => "u8",
+            MetadataType::I8 => "i8",
+            MetadataType::U16 => "u16",
+            MetadataType::I16 => "i16",
+            MetadataType::U32 => "u32",
+            MetadataType::I32 => "i32",
+            MetadataType::F32 => "f32",
+            MetadataType::Bool => "bool",
+            MetadataType::String => "string",
+            MetadataType::Array => "array",
+            MetadataType::U64 => "u64",
+            MetadataType::I64 => "i64",
+            MetadataType::F64 => "f64",
+        };
+        write!(f, "{repr}");
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum GGUFValue {
     U8(u8),
@@ -42,7 +104,7 @@ pub enum GGUFValue {
     F64(f64),
     Bool(bool),
     String(String),
-    Array(Vec<GGUFValue>),
+    Array(MetadataType, Vec<GGUFValue>),
 }
 
 /// GGML tensor types from llama.cpp
@@ -212,7 +274,7 @@ impl std::fmt::Display for GGUFValue {
             GGUFValue::F64(v) => write!(f, "{v}"),
             GGUFValue::Bool(v) => write!(f, "{v}"),
             GGUFValue::String(v) => write!(f, "\"{v}\""),
-            GGUFValue::Array(arr) => {
+            GGUFValue::Array(ty, arr) => {
                 if arr.len() <= 5 {
                     // Show small arrays in full
                     write!(f, "[")?;
@@ -321,29 +383,28 @@ impl GGUFFile {
     }
 
     fn read_value(cursor: &mut Cursor<&[u8]>, value_type: u32) -> Result<GGUFValue> {
-        match value_type {
-            0 => Ok(GGUFValue::U8(Self::read_u8(cursor)?)),
-            1 => Ok(GGUFValue::I8(Self::read_i8(cursor)?)),
-            2 => Ok(GGUFValue::U16(Self::read_u16(cursor)?)),
-            3 => Ok(GGUFValue::I16(Self::read_i16(cursor)?)),
-            4 => Ok(GGUFValue::U32(Self::read_u32(cursor)?)),
-            5 => Ok(GGUFValue::I32(Self::read_i32(cursor)?)),
-            6 => Ok(GGUFValue::F32(Self::read_f32(cursor)?)),
-            7 => Ok(GGUFValue::Bool(Self::read_u8(cursor)? != 0)),
-            8 => Ok(GGUFValue::String(Self::read_string(cursor)?)),
-            9 => {
+        match MetadataType::try_from(value_type)? {
+            MetadataType::U8 => Ok(GGUFValue::U8(Self::read_u8(cursor)?)),
+            MetadataType::I8 => Ok(GGUFValue::I8(Self::read_i8(cursor)?)),
+            MetadataType::U16 => Ok(GGUFValue::U16(Self::read_u16(cursor)?)),
+            MetadataType::I16 => Ok(GGUFValue::I16(Self::read_i16(cursor)?)),
+            MetadataType::U32 => Ok(GGUFValue::U32(Self::read_u32(cursor)?)),
+            MetadataType::I32 => Ok(GGUFValue::I32(Self::read_i32(cursor)?)),
+            MetadataType::F32 => Ok(GGUFValue::F32(Self::read_f32(cursor)?)),
+            MetadataType::Bool => Ok(GGUFValue::Bool(Self::read_u8(cursor)? != 0)),
+            MetadataType::String => Ok(GGUFValue::String(Self::read_string(cursor)?)),
+            MetadataType::Array => {
                 let array_type = Self::read_u32(cursor)?;
                 let array_len = Self::read_u64(cursor)?;
                 let mut array = Vec::new();
                 for _ in 0..array_len {
                     array.push(Self::read_value(cursor, array_type)?);
                 }
-                Ok(GGUFValue::Array(array))
+                Ok(GGUFValue::Array(MetadataType::try_from(array_type)?, array))
             }
-            10 => Ok(GGUFValue::U64(Self::read_u64(cursor)?)),
-            11 => Ok(GGUFValue::I64(Self::read_i64(cursor)?)),
-            12 => Ok(GGUFValue::F64(Self::read_f64(cursor)?)),
-            _ => Err(anyhow::anyhow!("Unknown value type: {}", value_type)),
+            MetadataType::U64 => Ok(GGUFValue::U64(Self::read_u64(cursor)?)),
+            MetadataType::I64 => Ok(GGUFValue::I64(Self::read_i64(cursor)?)),
+            MetadataType::F64 => Ok(GGUFValue::F64(Self::read_f64(cursor)?)),
         }
     }
 
